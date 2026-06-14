@@ -265,18 +265,15 @@ class WhsprRecognitionService : RecognitionService() {
             }
             complete(session) {
                 val finalText = text
-                if (modelChanged) {
-                    listener.error(SpeechRecognizer.ERROR_CLIENT)
-                } else if (!modelOk) {
-                    listener.error(SpeechRecognizer.ERROR_CLIENT)
-                } else if (finalText == null) {
-                    listener.error(SpeechRecognizer.ERROR_CLIENT)
-                } else if (finalText.isBlank()) {
-                    listener.error(SpeechRecognizer.ERROR_NO_MATCH)
-                } else {
-                    listener.results(Bundle().apply {
-                        putStringArrayList(RecognizerIntent.EXTRA_RESULTS, arrayListOf(finalText))
-                    })
+                when {
+                    modelChanged || !modelOk || finalText == null ->
+                        listener.error(SpeechRecognizer.ERROR_CLIENT)
+                    finalText.isBlank() ->
+                        listener.error(SpeechRecognizer.ERROR_NO_MATCH)
+                    else ->
+                        listener.results(Bundle().apply {
+                            putStringArrayList(RecognizerIntent.EXTRA_RESULTS, arrayListOf(finalText))
+                        })
                 }
             }
         }, "whspr-recognition").start()
