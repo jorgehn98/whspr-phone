@@ -1,0 +1,48 @@
+package dev.jorgex.whspr
+
+import android.content.Context
+
+class AppSettings(context: Context) {
+    private val prefs = context.getSharedPreferences("whspr", Context.MODE_PRIVATE)
+
+    var modelId: String
+        get() = prefs.getString(KEY_MODEL_ID, ModelCatalog.default.id) ?: ModelCatalog.default.id
+        set(value) = prefs.edit().putString(KEY_MODEL_ID, value).apply()
+
+    var language: String
+        get() = cleanLanguage(prefs.getString(KEY_LANGUAGE, LANGUAGE_SPANISH))
+        set(value) = prefs.edit().putString(KEY_LANGUAGE, cleanLanguage(value)).apply()
+
+    var pendingModelId: String?
+        get() = prefs.getString(KEY_PENDING_MODEL_ID, null)
+        set(value) = prefs.edit().putString(KEY_PENDING_MODEL_ID, value).apply()
+
+    var pendingDownloadId: Long
+        get() = prefs.getLong(KEY_PENDING_DOWNLOAD_ID, -1L)
+        set(value) = prefs.edit().putLong(KEY_PENDING_DOWNLOAD_ID, value).apply()
+
+    fun clearPendingDownload() {
+        prefs.edit()
+            .remove(KEY_PENDING_MODEL_ID)
+            .remove(KEY_PENDING_DOWNLOAD_ID)
+            .apply()
+    }
+
+    companion object {
+        const val LANGUAGE_SPANISH = "es"
+        const val LANGUAGE_AUTO = "auto"
+
+        private const val KEY_MODEL_ID = "model_id"
+        private const val KEY_LANGUAGE = "language"
+        private const val KEY_PENDING_MODEL_ID = "pending_model_id"
+        private const val KEY_PENDING_DOWNLOAD_ID = "pending_download_id"
+    }
+
+    private fun cleanLanguage(value: String?): String {
+        return when (value) {
+            LANGUAGE_SPANISH,
+            LANGUAGE_AUTO -> value
+            else -> LANGUAGE_SPANISH
+        }
+    }
+}

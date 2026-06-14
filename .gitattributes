@@ -1,0 +1,16 @@
+# Normaliza saltos de línea: LF en el repo por defecto
+* text=auto eol=lf
+
+# Scripts específicos de Windows: CRLF
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+
+# El wrapper de Gradle debe ser LF para ejecutarse en Unix
+gradlew text eol=lf
+
+# Binarios: sin conversión
+*.jar binary
+*.apk binary
+*.png binary
+*.bin binary
+*.gguf binary

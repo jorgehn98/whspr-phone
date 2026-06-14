@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<recognition-service
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:selectableAsDefault="true"
+    android:settingsActivity="dev.jorgex.whspr.MainActivity"
+    tools:targetApi="s" />
