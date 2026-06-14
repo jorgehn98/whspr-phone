@@ -3,7 +3,7 @@
     <string name="app_name">Whspr</string>
     <string name="ime_name">Whspr</string>
     <string name="recognition_service_name">Whspr dictado</string>
-    <string name="home_description">1. Permite micro. 2. Descarga modelo. 3. Activa y cambia a Whspr.</string>
+    <string name="home_description">1. Permite micro.\n2. Descarga modelo.\n3. Activa y cambia a Whspr.</string>
     <string name="status">Micro: %1$s · Modelo: %2$s</string>
     <string name="ready">OK</string>
     <string name="missing">falta</string>
@@ -12,6 +12,7 @@
     <string name="failed">falló</string>
     <string name="selected_model">Modelo: %1$s (%2$s)</string>
     <string name="selected_language">Idioma: %1$s</string>
+    <string name="language_title">Elige idioma</string>
     <string name="language_spanish">Español</string>
     <string name="language_auto">Auto</string>
     <string name="allow_microphone">Permitir micrófono</string>

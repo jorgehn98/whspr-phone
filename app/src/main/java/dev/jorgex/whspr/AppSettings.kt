@@ -39,10 +39,6 @@ class AppSettings(context: Context) {
     }
 
     private fun cleanLanguage(value: String?): String {
-        return when (value) {
-            LANGUAGE_SPANISH,
-            LANGUAGE_AUTO -> value
-            else -> LANGUAGE_SPANISH
-        }
+        return if (value != null && Languages.isValid(value)) value else LANGUAGE_SPANISH
     }
 }

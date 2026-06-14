@@ -2,19 +2,23 @@ package dev.jorgex.whspr
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.view.Gravity
+import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -28,6 +32,8 @@ class MainActivity : Activity() {
     private lateinit var languageButton: Button
     private lateinit var permissionButton: Button
     private lateinit var downloadButton: Button
+    private lateinit var permissionTrash: ImageView
+    private lateinit var downloadTrash: ImageView
     private var statusRequest = 0
     private val refreshHandler = Handler(Looper.getMainLooper())
     private val refreshRunnable = object : Runnable {
@@ -72,14 +78,7 @@ class MainActivity : Activity() {
         }
 
         languageButton = Button(this).apply {
-            setOnClickListener {
-                settings.language = if (settings.language == AppSettings.LANGUAGE_SPANISH) {
-                    AppSettings.LANGUAGE_AUTO
-                } else {
-                    AppSettings.LANGUAGE_SPANISH
-                }
-                refreshStatus()
-            }
+            setOnClickListener { showLanguagePicker() }
         }
 
         permissionButton = Button(this).apply {
@@ -129,17 +128,24 @@ class MainActivity : Activity() {
             }
         }
 
+        permissionTrash = trashIcon { openAppSettings() }
+        downloadTrash = trashIcon { deleteCurrentModel() }
+        val permissionRow = buttonRow(permissionButton, permissionTrash)
+        val downloadRow = buttonRow(downloadButton, downloadTrash)
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(40, 40, 40, 40)
+            val side = (24 * resources.displayMetrics.density).toInt()
+            val top = (72 * resources.displayMetrics.density).toInt()
+            setPadding(side, top, side, side)
             addView(title)
             addView(description)
             addView(status)
             addView(modelButton)
             addView(languageButton)
-            addView(permissionButton)
-            addView(downloadButton)
+            addView(permissionRow)
+            addView(downloadRow)
             addView(enableButton)
             addView(voiceSettingsButton)
             addView(switchButton)
@@ -163,16 +169,53 @@ class MainActivity : Activity() {
         refreshStatus()
     }
 
-    private fun styleButton(button: Button) {
+    private fun decorateButton(button: Button) {
         button.isAllCaps = false
         button.setTextColor(buttonTextColors())
         button.background = buttonBackground()
+    }
+
+    private fun styleButton(button: Button) {
+        decorateButton(button)
         val params = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             (52 * resources.displayMetrics.density).toInt(),
         )
         params.setMargins(0, (8 * resources.displayMetrics.density).toInt(), 0, 0)
         button.layoutParams = params
+    }
+
+    private fun trashIcon(onClick: () -> Unit): ImageView {
+        return ImageView(this).apply {
+            setImageResource(R.drawable.ic_trash)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            setColorFilter(WhsprColors.forContext(this@MainActivity).accent)
+            val pad = (12 * resources.displayMetrics.density).toInt()
+            setPadding(pad, pad, pad, pad)
+            setOnClickListener { onClick() }
+        }
+    }
+
+    private fun buttonRow(button: Button, trash: ImageView): LinearLayout {
+        val d = resources.displayMetrics.density
+        val height = (52 * d).toInt()
+        decorateButton(button)
+        button.layoutParams = LinearLayout.LayoutParams(0, height, 1f)
+        val trashParams = LinearLayout.LayoutParams((44 * d).toInt(), height)
+        trashParams.setMargins((8 * d).toInt(), 0, 0, 0)
+        trash.layoutParams = trashParams
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            val rowParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            )
+            rowParams.setMargins(0, (8 * d).toInt(), 0, 0)
+            layoutParams = rowParams
+            addView(button)
+            addView(trash)
+        }
     }
 
     private fun buttonBackground(): Drawable {
@@ -228,14 +271,7 @@ class MainActivity : Activity() {
         val request = ++statusRequest
 
         modelButton.text = getString(R.string.selected_model, model.label, model.sizeLabel)
-        languageButton.text = getString(
-            R.string.selected_language,
-            if (settings.language == AppSettings.LANGUAGE_SPANISH) {
-                getString(R.string.language_spanish)
-            } else {
-                getString(R.string.language_auto)
-            },
-        )
+        languageButton.text = getString(R.string.selected_language, Languages.nameFor(settings.language))
         status.text = getString(
             R.string.status,
             if (micReady) getString(R.string.ready) else getString(R.string.missing),
@@ -243,8 +279,10 @@ class MainActivity : Activity() {
         )
         permissionButton.isEnabled = !micReady
         permissionButton.text = if (micReady) getString(R.string.microphone_allowed) else getString(R.string.allow_microphone)
+        permissionTrash.visibility = if (micReady) View.VISIBLE else View.GONE
         downloadButton.isEnabled = false
         downloadButton.text = getString(R.string.checking)
+        downloadTrash.visibility = View.GONE
 
         Thread({
             val state = modelState(model)
@@ -267,6 +305,7 @@ class MainActivity : Activity() {
             UiModelState.Downloading -> getString(R.string.downloading)
             else -> getString(R.string.download_model)
         }
+        downloadTrash.visibility = if (modelState == UiModelState.Ready) View.VISIBLE else View.GONE
 
         refreshHandler.removeCallbacks(refreshRunnable)
         if (modelState == UiModelState.Downloading) {
@@ -338,6 +377,37 @@ class MainActivity : Activity() {
             startActivity(Intent(Settings.ACTION_VOICE_INPUT_SETTINGS))
         }.onFailure {
             startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
+        }
+    }
+
+    private fun showLanguagePicker() {
+        val items = Languages.all
+        val names = items.map { it.name }.toTypedArray()
+        val current = items.indexOfFirst { it.code == settings.language }.coerceAtLeast(0)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.language_title)
+            .setSingleChoiceItems(names, current) { dialog, which ->
+                settings.language = items[which].code
+                dialog.dismiss()
+                refreshStatus()
+            }
+            .show()
+    }
+
+    private fun deleteCurrentModel() {
+        clearPendingDownload()
+        modelStore.delete(ModelCatalog.byId(settings.modelId))
+        refreshStatus()
+    }
+
+    private fun openAppSettings() {
+        runCatching {
+            startActivity(
+                Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.fromParts("package", packageName, null),
+                ),
+            )
         }
     }
 
