@@ -2,6 +2,7 @@
 
 Entrada de voz Android para **dictado 100% local**. Sin nube: descarga un modelo Whisper al almacenamiento propio de la app y transcribe en el dispositivo con `whisper.cpp`.
 
+[![Static checks](https://github.com/jorgehn98/whspr-phone/actions/workflows/static-checks.yml/badge.svg)](https://github.com/jorgehn98/whspr-phone/actions/workflows/static-checks.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-Android%2028%2B-3DDC84)
 ![ABI](https://img.shields.io/badge/ABI-arm64--v8a-blue)
