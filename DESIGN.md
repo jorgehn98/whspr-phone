@@ -5,30 +5,32 @@ Sistema de diseño mínimo de Whspr. Léelo antes de tocar UI. Tokens en
 
 ## Identidad
 
-Tecnológica, sobria, tipo HUD/reactor (referencia: interfaces de Iron Man).
-**Nada de azul/violeta.** Paleta cálida ámbar/oro sobre carbón.
+Tecnológica y sobria, estética terminal/ASCII. **Monocromo**: blancos y grises.
+Nada de color de acento; la jerarquía se hace con tonos (claro↔oscuro) y densidad ASCII.
 
-## Paleta (ARGB)
+## Paleta
 
-| Token | Hex | Uso |
-| --- | --- | --- |
-| `Background` | `#0E0E10` | Fondo base (carbón) |
-| `BackgroundTop` | `#15151A` | Degradado superior del fondo |
-| `Surface` | `#1A1A20` | Botones, tarjetas |
-| `SurfaceStroke` | `#2C2C34` | Bordes de superficie |
-| `Accent` | `#FFB020` | Ámbar/oro principal |
-| `AccentBright` | `#FFC861` | Ámbar brillante (escuchando) |
-| `AccentDeep` | `#FF7A1A` | Naranja (procesando) |
-| `AccentMuted` | `#6E5320` | Ámbar apagado (estructura HUD) |
-| `Glow` | `#FFE3A6` | Brillo cálido (núcleo, glow) |
-| `TextPrimary` | `#F5F0E6` | Texto principal (crema) |
-| `TextMuted` | `#9A958C` | Texto secundario |
-| `Disabled` | `#4A4A52` | Estados deshabilitados |
+Dos paletas que siguen el modo del sistema (`WhsprColors.Dark` / `Light`). En oscuro
+el contenido es claro sobre carbón; en claro, oscuro sobre blanco. Tokens (rol):
+
+| Token | Rol | Oscuro | Claro |
+| --- | --- | --- | --- |
+| `background` / `backgroundTop` | Fondo (degradado) | `#0E0E10` / `#161619` | `#F5F5F6` / `#FFFFFF` |
+| `surface` / `surfaceStroke` | Superficies y bordes | `#1B1B1F` / `#2E2E33` | `#FFFFFF` / `#E2E2E6` |
+| `accent` | Texto/iconos accionables | `#F2F2F2` | `#1F1F22` |
+| `accentBright` | Máximo brillo (escuchando, núcleo) | `#FFFFFF` | `#101012` |
+| `accentDeep` | Procesando | `#B8B8C0` | `#44444A` |
+| `accentMuted` | Estructura ASCII atenuada | `#6A6A72` | `#9A9AA0` |
+| `glow` | Centro del núcleo / halo | `#FFFFFF` | `#1F1F22` |
+| `onAccent` | Sobre el núcleo (glifo del micro) | `#0E0E10` | `#F5F5F6` |
+| `textPrimary` / `textMuted` | Texto | `#F2F2F2` / `#9A9AA2` | `#1A1A1D` / `#6A6A70` |
+| `disabled` | Deshabilitado | `#4A4A52` | `#C2C2C8` |
 
 ## Reglas
 
 - Los colores se definen **solo** en `WhsprColors`. No hardcodear hex en las vistas.
-- Fondo siempre oscuro; acento ámbar reservado para lo accionable y lo "vivo".
+- Paleta monocroma: sin color de acento. Contraste por tono, no por matiz.
+- Claro/oscuro automático según el sistema; sin selector.
 - Sin Compose ni AndroidX: todo se construye con vistas/`Canvas` a mano.
 
 ## Componentes

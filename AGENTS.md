@@ -81,8 +81,8 @@ un analizador frágil ni dependencias nuevas.
 
 ## Diseño
 
-UI con estilo HUD ámbar/oro sobre carbón (nada de azul/violeta). Tokens de color en
-`Theme.kt` (`WhsprColors`) — no hardcodear hex en las vistas. Detalles en `DESIGN.md`.
+UI estética terminal/ASCII, **monocroma** (blancos y grises, claro/oscuro automático).
+Tokens de color en `Theme.kt` (`WhsprColors`) — no hardcodear hex en las vistas. Detalles en `DESIGN.md`.
 
 ## Idioma
 
