@@ -114,13 +114,6 @@ class MainActivity : Activity() {
             }
         }
 
-        val voiceSettingsButton = Button(this).apply {
-            text = getString(R.string.voice_input_settings)
-            setOnClickListener {
-                openVoiceInputSettings()
-            }
-        }
-
         val switchButton = Button(this).apply {
             text = getString(R.string.switch_keyboard)
             setOnClickListener {
@@ -147,7 +140,6 @@ class MainActivity : Activity() {
             addView(permissionRow)
             addView(downloadRow)
             addView(enableButton)
-            addView(voiceSettingsButton)
             addView(switchButton)
         }
 
@@ -369,14 +361,6 @@ class MainActivity : Activity() {
             UiModelState.Missing -> getString(R.string.missing)
             UiModelState.Downloading -> getString(R.string.downloading)
             UiModelState.Failed -> getString(R.string.failed)
-        }
-    }
-
-    private fun openVoiceInputSettings() {
-        runCatching {
-            startActivity(Intent(Settings.ACTION_VOICE_INPUT_SETTINGS))
-        }.onFailure {
-            startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
         }
     }
 

@@ -363,16 +363,6 @@ try {
     } else {
         Write-Host "OK   recognition service support check"
     }
-    $mainActivityText = Get-Content -Raw -Path ".\app\src\main\java\dev\jorgex\whspr\MainActivity.kt"
-    if (
-        $mainActivityText -notmatch 'ACTION_VOICE_INPUT_SETTINGS' -or
-        $stringsXml -notmatch 'name="voice_input_settings"'
-    ) {
-        Write-Host "MISS voice input settings entry"
-        $failed += 1
-    } else {
-        Write-Host "OK   voice input settings entry"
-    }
     if (
         $recognitionServiceText -match '@RequiresApi|androidx\.annotation\.RequiresApi|import android\.annotation\.RequiresApi' -or
         $recognitionServiceText -notmatch 'Build\.VERSION\.SDK_INT >= Build\.VERSION_CODES\.S' -or

@@ -21,7 +21,6 @@
     <string name="model_downloaded">Modelo descargado</string>
     <string name="download_description">Descargando modelo local de Whspr</string>
     <string name="enable_keyboard">Activar Whspr</string>
-    <string name="voice_input_settings">Dictado Android</string>
     <string name="switch_keyboard">Cambiar a Whspr</string>
     <string name="mic_idle">Toca para dictar</string>
     <string name="mic_listening">Escuchando… toca para parar</string>

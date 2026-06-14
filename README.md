@@ -35,9 +35,8 @@ La app no usa nube. Descarga el modelo al almacenamiento propio de la app y tran
 3. Pulsa **Permitir micrófono**.
 4. Elige modelo. Por defecto: `Tiny multilingüe`, el más ligero.
 5. Pulsa **Descargar modelo**.
-6. Pulsa **Dictado Android** si Android permite elegir proveedor de voz.
-7. Pulsa **Cambiar a Whspr** y elige Whspr si quieres usar su panel directo.
-8. En cualquier campo de texto, toca dictar.
+6. Pulsa **Cambiar a Whspr** y elige Whspr para usar su teclado de dictado.
+7. En cualquier campo de texto, toca el micrófono para dictar.
 
 ## Privacidad
 
