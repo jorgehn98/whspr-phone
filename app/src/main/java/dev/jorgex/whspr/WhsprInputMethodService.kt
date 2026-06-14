@@ -46,7 +46,7 @@ class WhsprInputMethodService : InputMethodService() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(20), dp(16), dp(20), dp(56))
+            setPadding(dp(20), dp(12), dp(20), dp(44))
             background = GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
                 intArrayOf(palette.backgroundTop, palette.background),
@@ -55,14 +55,14 @@ class WhsprInputMethodService : InputMethodService() {
 
         val settingsButton = TextView(this).apply {
             text = "⚙"
-            textSize = 22f
+            textSize = 20f
             includeFontPadding = false
             gravity = Gravity.CENTER
             setPadding(dp(4), 0, dp(4), 0)
             setTextColor(palette.accent)
             val params = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
-                dp(52),
+                dp(44),
             )
             params.setMargins(dp(2), 0, dp(6), 0)
             layoutParams = params
@@ -72,7 +72,7 @@ class WhsprInputMethodService : InputMethodService() {
         val bubble = BubbleMicView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(240),
+                dp(170),
             )
             setOnClickListener { toggleDictation() }
         }
@@ -167,7 +167,7 @@ class WhsprInputMethodService : InputMethodService() {
             setTextColor(WhsprColors.forContext(context).accent)
             setAutoSizeTextTypeUniformWithConfiguration(8, 12, 1, TypedValue.COMPLEX_UNIT_SP)
             background = keyBackground()
-            val params = LinearLayout.LayoutParams(0, dp(52), 1f)
+            val params = LinearLayout.LayoutParams(0, dp(44), 1f)
             params.setMargins(dp(4), 0, dp(4), 0)
             layoutParams = params
             setOnClickListener { action() }
