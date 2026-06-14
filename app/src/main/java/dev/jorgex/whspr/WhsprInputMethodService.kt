@@ -1,15 +1,22 @@
 package dev.jorgex.whspr
 
+import android.content.res.ColorStateList
+import android.content.res.Configuration
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
+import android.graphics.Typeface
+import android.graphics.drawable.RippleDrawable
 import android.inputmethodservice.InputMethodService
 import android.os.Handler
 import android.os.Looper
 import android.text.InputType
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.inputmethod.EditorInfo
-import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 
 class WhsprInputMethodService : InputMethodService() {
@@ -26,55 +33,61 @@ class WhsprInputMethodService : InputMethodService() {
     private var inputSession = 0
     private var dictationModelId: String? = null
     private var destroyed = false
-    private var micButton: Button? = null
+    private var micButton: BubbleMicView? = null
+    private var micLabel: TextView? = null
 
     override fun onEvaluateFullscreenMode(): Boolean {
         return false
     }
 
     override fun onCreateInputView(): View {
-        return LinearLayout(this).apply {
+        val palette = WhsprColors.forContext(this)
+        val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(16, 16, 16, 16)
-            setBackgroundColor(0xFF111111.toInt())
-
-            micButton = Button(context).apply {
-                text = getString(R.string.mic_idle)
-                textSize = 18f
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                )
-                setOnClickListener { toggleDictation() }
-            }
-            updateMicButton()
-
-            val controls = LinearLayout(context).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER
-
-                addView(key(getString(R.string.key_space)) {
-                    pressSpace()
-                })
-                addView(key(getString(R.string.key_delete)) {
-                    currentInputConnection?.deleteSurroundingTextInCodePoints(1, 0)
-                })
-                addView(key(getString(R.string.key_enter)) {
-                    pressEnter()
-                })
-                addView(key(getString(R.string.key_next)) {
-                    if (isListening || isProcessing) {
-                        showMessage(R.string.error_stop_before_switching)
-                    } else {
-                        switchKeyboard()
-                    }
-                })
-            }
-
-            addView(micButton)
-            addView(controls)
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(20), dp(16), dp(20), dp(56))
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(palette.backgroundTop, palette.background),
+            )
         }
+
+        val bubble = BubbleMicView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(240),
+            )
+            setOnClickListener { toggleDictation() }
+        }
+        micButton = bubble
+
+        val label = TextView(this).apply {
+            textSize = 15f
+            gravity = Gravity.CENTER
+            setTextColor(palette.textPrimary)
+            setPadding(0, dp(10), 0, dp(16))
+        }
+        micLabel = label
+
+        val controls = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            addView(key(getString(R.string.key_space)) {
+                pressSpace()
+            })
+            addView(key(getString(R.string.key_delete)) {
+                currentInputConnection?.deleteSurroundingTextInCodePoints(1, 0)
+            })
+            addView(key(getString(R.string.key_enter)) {
+                pressEnter()
+            })
+        }
+
+        root.addView(bubble)
+        root.addView(label)
+        root.addView(controls)
+        updateMicButton()
+        return root
     }
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
@@ -105,20 +118,51 @@ class WhsprInputMethodService : InputMethodService() {
         dictationModelId = null
         isProcessing = false
         micButton = null
+        micLabel = null
         mainHandler.removeCallbacksAndMessages(null)
         super.onDestroy()
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (micButton != null) {
+            setInputView(onCreateInputView())
+            updateMicButton()
+        }
+    }
+
     private fun key(label: String, action: () -> Unit): Button {
         return Button(this).apply {
-            text = label
-            layoutParams = LinearLayout.LayoutParams(
-                0,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                1f,
-            )
+            text = "[$label]"
+            isAllCaps = false
+            isSingleLine = true
+            typeface = Typeface.MONOSPACE
+            minWidth = 0
+            minHeight = 0
+            setPadding(dp(3), 0, dp(3), 0)
+            setTextColor(WhsprColors.forContext(context).accent)
+            setAutoSizeTextTypeUniformWithConfiguration(8, 12, 1, TypedValue.COMPLEX_UNIT_SP)
+            background = keyBackground()
+            val params = LinearLayout.LayoutParams(0, dp(52), 1f)
+            params.setMargins(dp(4), 0, dp(4), 0)
+            layoutParams = params
             setOnClickListener { action() }
         }
+    }
+
+    private fun keyBackground(): Drawable {
+        val palette = WhsprColors.forContext(this)
+        val shape = GradientDrawable().apply {
+            cornerRadius = dp(5).toFloat()
+            setColor(palette.surface)
+            setStroke(dp(1), palette.accentMuted)
+        }
+        val ripple = (palette.accent and 0x00FFFFFF) or 0x40000000
+        return RippleDrawable(ColorStateList.valueOf(ripple), shape, null)
+    }
+
+    private fun dp(value: Int): Int {
+        return (value * resources.displayMetrics.density).toInt()
     }
 
     private fun toggleDictation() {
@@ -247,13 +291,6 @@ class WhsprInputMethodService : InputMethodService() {
         Toast.makeText(this, messageRes, Toast.LENGTH_SHORT).show()
     }
 
-    private fun switchKeyboard() {
-        if (!switchToNextInputMethod(false)) {
-            val inputMethodManager = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
-            inputMethodManager.showInputMethodPicker()
-        }
-    }
-
     private fun pressEnter() {
         if (!noEnterAction &&
             editorAction != EditorInfo.IME_ACTION_NONE &&
@@ -279,12 +316,17 @@ class WhsprInputMethodService : InputMethodService() {
 
     private fun updateMicButton() {
         micButton?.isEnabled = !isSecureInput && !isProcessing
-        micButton?.text = when {
-            isSecureInput -> getString(R.string.mic_disabled_secure)
-            isProcessing -> getString(R.string.mic_processing)
-            isListening -> getString(R.string.mic_listening)
-            else -> getString(R.string.mic_idle)
-        }
+        micButton?.setMode(
+            when {
+                isSecureInput -> BubbleMicView.Mode.DISABLED
+                isProcessing -> BubbleMicView.Mode.PROCESSING
+                isListening -> BubbleMicView.Mode.LISTENING
+                else -> BubbleMicView.Mode.IDLE
+            },
+        )
+        val labelText = if (isSecureInput) getString(R.string.mic_disabled_secure) else ""
+        micLabel?.text = labelText
+        micLabel?.visibility = if (labelText.isEmpty()) View.GONE else View.VISIBLE
     }
 
     private fun isPasswordInput(inputType: Int): Boolean {

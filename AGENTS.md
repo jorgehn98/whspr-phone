@@ -79,6 +79,11 @@ un analizador frágil ni dependencias nuevas.
 - **Atribución de micrófono** correcta (contexto) y liberar el micro al devolver resultado.
 - No dejar marcadores TODO/stale ni referencias viejas del vendor: `check-static.ps1` lo verifica.
 
+## Diseño
+
+UI con estilo HUD ámbar/oro sobre carbón (nada de azul/violeta). Tokens de color en
+`Theme.kt` (`WhsprColors`) — no hardcodear hex en las vistas. Detalles en `DESIGN.md`.
+
 ## Idioma
 
 - Documentación y UI en **español (España)**. Idioma de dictado por defecto `es-ES`, con modo `auto`.

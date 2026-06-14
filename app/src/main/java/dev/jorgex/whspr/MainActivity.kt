@@ -4,6 +4,10 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.RippleDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -141,8 +145,55 @@ class MainActivity : Activity() {
             addView(switchButton)
         }
 
-        setContentView(ScrollView(this).apply { addView(root) })
+        val palette = WhsprColors.forContext(this)
+        title.setTextColor(palette.textPrimary)
+        description.setTextColor(palette.textMuted)
+        status.setTextColor(palette.textPrimary)
+        root.setBackgroundColor(palette.background)
+        for (i in 0 until root.childCount) {
+            (root.getChildAt(i) as? Button)?.let { styleButton(it) }
+        }
+
+        setContentView(
+            ScrollView(this).apply {
+                setBackgroundColor(palette.background)
+                addView(root)
+            },
+        )
         refreshStatus()
+    }
+
+    private fun styleButton(button: Button) {
+        button.isAllCaps = false
+        button.setTextColor(buttonTextColors())
+        button.background = buttonBackground()
+        val params = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            (52 * resources.displayMetrics.density).toInt(),
+        )
+        params.setMargins(0, (8 * resources.displayMetrics.density).toInt(), 0, 0)
+        button.layoutParams = params
+    }
+
+    private fun buttonBackground(): Drawable {
+        val palette = WhsprColors.forContext(this)
+        val shape = GradientDrawable().apply {
+            cornerRadius = 14 * resources.displayMetrics.density
+            setColor(palette.surface)
+            setStroke(resources.displayMetrics.density.toInt(), palette.surfaceStroke)
+        }
+        val ripple = (palette.accent and 0x00FFFFFF) or 0x40000000
+        return RippleDrawable(ColorStateList.valueOf(ripple), shape, null)
+    }
+
+    private fun buttonTextColors(): ColorStateList {
+        val palette = WhsprColors.forContext(this)
+        val states = arrayOf(
+            intArrayOf(android.R.attr.state_enabled),
+            intArrayOf(-android.R.attr.state_enabled),
+        )
+        val colors = intArrayOf(palette.textPrimary, palette.textMuted)
+        return ColorStateList(states, colors)
     }
 
     override fun onResume() {

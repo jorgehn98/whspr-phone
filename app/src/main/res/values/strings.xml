@@ -35,9 +35,7 @@
     <string name="error_invalid_model">El modelo descargado no es válido. Descárgalo otra vez.</string>
     <string name="error_download_start_failed">No he podido empezar la descarga.</string>
     <string name="error_transcriber_not_ready">No he podido transcribir el audio.</string>
-    <string name="error_stop_before_switching">Para el dictado antes de cambiar de teclado.</string>
     <string name="key_space">Espacio</string>
     <string name="key_delete">Borrar</string>
     <string name="key_enter">Intro</string>
-    <string name="key_next">Siguiente</string>
 </resources>
