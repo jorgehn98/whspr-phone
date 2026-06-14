@@ -1,6 +1,10 @@
 # Whspr
 
-Entrada de voz Android mínima para dictado local.
+Entrada de voz Android para **dictado 100% local**. Sin nube: descarga un modelo Whisper al almacenamiento propio de la app y transcribe en el dispositivo con `whisper.cpp`.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![Platform](https://img.shields.io/badge/platform-Android%2028%2B-3DDC84)
+![ABI](https://img.shields.io/badge/ABI-arm64--v8a-blue)
 
 ## Estado
 
@@ -33,6 +37,13 @@ La app no usa nube. Descarga el modelo al almacenamiento propio de la app y tran
 6. Pulsa **Dictado Android** si Android permite elegir proveedor de voz.
 7. Pulsa **Cambiar a Whspr** y elige Whspr si quieres usar su panel directo.
 8. En cualquier campo de texto, toca dictar.
+
+## Privacidad
+
+- El audio nunca sale del dispositivo. No hay servidores ni telemetría.
+- La única conexión de red es la descarga del modelo, vía `DownloadManager` del sistema.
+- El modelo se valida por SHA-1 antes de transcribir y se guarda en el almacenamiento privado de la app.
+- Permisos declarados: solo `RECORD_AUDIO` e `INTERNET` (este último, exclusivamente para descargar el modelo).
 
 ## Principio del proyecto
 
@@ -170,3 +181,14 @@ O deja que el proyecto lo cree si encuentra el SDK:
 ```
 
 Plan de prueba manual: `TEST_PLAN.md`.
+
+## Contribuir
+
+Antes de tocar el código, lee `AGENTS.md`: stack, comandos e invariantes que no hay que romper.
+Ejecuta `.\scripts\check-static.ps1` antes de proponer cambios; es la verificación rápida del proyecto.
+
+## Licencia
+
+MIT — ver `LICENSE`.
+
+Incluye `whisper.cpp` (MIT) vendorizado en `third_party/whisper.cpp`. Avisos de terceros en `THIRD_PARTY_NOTICES.md`.
