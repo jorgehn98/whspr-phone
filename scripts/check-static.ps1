@@ -83,7 +83,7 @@ try {
         $verifyScriptText -notmatch '& \$adb @adbTarget shell getprop ro\.build\.version\.sdk' -or
         $verifyScriptText -notmatch '& \$adb @adbTarget shell pm path \$package' -or
         $verifyScriptText -notmatch '& \$adb @adbTarget shell ime list -a' -or
-        $verifyScriptText -notmatch '& \$adb @adbTarget shell cmd package query-intent-services' -or
+        $verifyScriptText -notmatch '& \$adb @adbTarget shell pm dump \$package' -or
         $installScriptText -notmatch '& \$adb @adbTarget install -r \$apk' -or
         $installReleaseScriptText -notmatch '& \$adb @adbTarget install -r \$apk' -or
         $installScriptText -notmatch 'pm grant dev\.jorgex\.whspr android\.permission\.RECORD_AUDIO' -or
@@ -93,7 +93,7 @@ try {
         $installScriptText -notmatch '-RequireMicrophone:\$micGrantedByAdb' -or
         $installReleaseScriptText -notmatch '-RequireMicrophone:\$micGrantedByAdb' -or
         $verifyScriptText -notmatch '\[switch\]\$RequireMicrophone' -or
-        $verifyScriptText -notmatch 'pm check-permission android\.permission\.RECORD_AUDIO \$package' -or
+        $verifyScriptText -notmatch 'appops get \$package RECORD_AUDIO' -or
         $verifyScriptText -notmatch 'WARN microphone permission' -or
         $installScriptText -notmatch 'am start -W -n dev\.jorgex\.whspr/\.MainActivity' -or
         $installReleaseScriptText -notmatch 'am start -W -n dev\.jorgex\.whspr/\.MainActivity' -or

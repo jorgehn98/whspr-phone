@@ -84,8 +84,8 @@ try {
     }
     Write-Host "OK   package installed"
 
-    $micPermission = (& $adb @adbTarget shell pm check-permission android.permission.RECORD_AUDIO $package).Trim()
-    if ($micPermission -eq "granted") {
+    $micState = (& $adb @adbTarget shell appops get $package RECORD_AUDIO) -join "`n"
+    if ($micState -match 'RECORD_AUDIO:\s*(allow|foreground)') {
         Write-Host "OK   microphone permission granted"
     } elseif ($RequireMicrophone) {
         Write-Host "MISS microphone permission -> abre Whspr y permite el micrófono"
@@ -105,7 +105,7 @@ try {
         exit 1
     }
 
-    $recognizers = & $adb @adbTarget shell cmd package query-intent-services -a android.speech.RecognitionService 2>$null
+    $recognizers = & $adb @adbTarget shell pm dump $package 2>$null
     if (
         $recognizers -match "$packagePattern/\.WhsprRecognitionService" -or
         $recognizers -match "$packagePattern/$packagePattern\.WhsprRecognitionService"
