@@ -19,7 +19,7 @@ MVP inicial:
 - UI mínima para activar/cambiar teclado.
 - Permiso de micrófono.
 - Descarga de modelo local.
-- Validación SHA-1 del modelo antes de transcribir.
+- Validación SHA-256 del modelo antes de transcribir.
 - Ajustes mínimos: modelo e idioma.
 - Botón de micrófono en el teclado.
 - Captura de audio a WAV 16 kHz desde el IME.
@@ -42,7 +42,7 @@ La app no usa nube. Descarga el modelo al almacenamiento propio de la app y tran
 
 - El audio nunca sale del dispositivo. No hay servidores ni telemetría.
 - La única conexión de red es la descarga del modelo, vía `DownloadManager` del sistema.
-- El modelo se valida por SHA-1 antes de transcribir y se guarda en el almacenamiento privado de la app.
+- El modelo se valida por SHA-256 antes de transcribir y se guarda en el almacenamiento privado de la app.
 - Permisos declarados: solo `RECORD_AUDIO` e `INTERNET` (este último, exclusivamente para descargar el modelo).
 
 ## Principio del proyecto

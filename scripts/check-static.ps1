@@ -407,7 +407,7 @@ try {
     $catalogText = Get-Content -Raw -Path ".\app\src\main\java\dev\jorgex\whspr\ModelCatalog.kt"
     $modelIds = [regex]::Matches($catalogText, 'id\s*=\s*"([^"]+)"') | ForEach-Object { $_.Groups[1].Value }
     $fileNames = [regex]::Matches($catalogText, 'fileName\s*=\s*"([^"]+)"') | ForEach-Object { $_.Groups[1].Value }
-    $sha1s = [regex]::Matches($catalogText, 'sha1\s*=\s*"([^"]+)"') | ForEach-Object { $_.Groups[1].Value }
+    $sha256s = [regex]::Matches($catalogText, 'sha256\s*=\s*"([^"]+)"') | ForEach-Object { $_.Groups[1].Value }
     $urls = [regex]::Matches($catalogText, 'url\s*=\s*"([^"]+)"') | ForEach-Object { $_.Groups[1].Value }
     $catalogFailed = 0
     if (($modelIds | Sort-Object -Unique).Count -ne $modelIds.Count) {
@@ -418,13 +418,13 @@ try {
         Write-Host "MISS model catalog -> duplicate file names"
         $catalogFailed += 1
     }
-    if ($modelIds.Count -eq 0 -or $modelIds.Count -ne $fileNames.Count -or $modelIds.Count -ne $sha1s.Count -or $modelIds.Count -ne $urls.Count) {
+    if ($modelIds.Count -eq 0 -or $modelIds.Count -ne $fileNames.Count -or $modelIds.Count -ne $sha256s.Count -or $modelIds.Count -ne $urls.Count) {
         Write-Host "MISS model catalog -> incomplete model fields"
         $catalogFailed += 1
     }
-    foreach ($sha1 in $sha1s) {
-        if ($sha1 -notmatch '^[a-f0-9]{40}$') {
-            Write-Host "MISS model catalog sha1 -> $sha1"
+    foreach ($sha256 in $sha256s) {
+        if ($sha256 -notmatch '^[a-f0-9]{64}$') {
+            Write-Host "MISS model catalog sha256 -> $sha256"
             $catalogFailed += 1
         }
     }
@@ -449,11 +449,11 @@ try {
     ) -join "`n"
     if (
         $modelStoreText -notmatch 'fun isReady\(model: SpeechModel\): Boolean' -or
-        $modelStoreText -notmatch 'hasExpectedSha1\(model\)' -or
-        $runtimeModelText -notmatch 'hasExpectedSha1\(model\)' -or
+        $modelStoreText -notmatch 'hasExpectedSha256\(model\)' -or
+        $runtimeModelText -notmatch 'hasExpectedSha256\(model\)' -or
         $runtimeModelText -notmatch 'transcriber\.transcribe'
     ) {
-        Write-Host "MISS model readiness -> Transcription must require SHA1"
+        Write-Host "MISS model readiness -> Transcription must require SHA256"
         $failed += 1
     } else {
         Write-Host "OK   model readiness"

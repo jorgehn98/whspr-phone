@@ -6,7 +6,7 @@ data class SpeechModel(
     val fileName: String,
     val sizeLabel: String,
     val minBytes: Long,
-    val sha1: String,
+    val sha256: String,
     val url: String,
 )
 
@@ -18,7 +18,7 @@ object ModelCatalog {
             fileName = "ggml-tiny-q5_1.bin",
             sizeLabel = "31 MB",
             minBytes = 25L * 1024L * 1024L,
-            sha1 = "2827a03e495b1ed3048ef28a6a4620537db4ee51",
+            sha256 = "818710568da3ca15689e31a743197b520007872ff9576237bda97bd1b469c3d7",
             url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny-q5_1.bin",
         ),
         SpeechModel(
@@ -27,7 +27,7 @@ object ModelCatalog {
             fileName = "ggml-tiny.bin",
             sizeLabel = "75 MB",
             minBytes = 70L * 1024L * 1024L,
-            sha1 = "bd577a113a864445d4c299885e0cb97d4ba92b5f",
+            sha256 = "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21",
             url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin",
         ),
     )

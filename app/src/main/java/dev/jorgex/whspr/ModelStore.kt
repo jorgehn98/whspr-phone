@@ -19,16 +19,16 @@ class ModelStore(private val context: Context) {
     }
 
     fun isReady(model: SpeechModel): Boolean {
-        return isDownloaded(model) && hasExpectedSha1(model)
+        return isDownloaded(model) && hasExpectedSha256(model)
     }
 
-    fun hasExpectedSha1(model: SpeechModel): Boolean {
+    fun hasExpectedSha256(model: SpeechModel): Boolean {
         val file = fileFor(model)
         if (!isDownloaded(model)) return false
         val cacheKey = integrityCacheKey(model, file)
         if (prefs.getBoolean(cacheKey, false)) return true
 
-        val digest = MessageDigest.getInstance("SHA-1")
+        val digest = MessageDigest.getInstance("SHA-256")
         val digestReady = runCatching {
                 file.inputStream().use { input ->
                     val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
@@ -45,7 +45,7 @@ class ModelStore(private val context: Context) {
         return digest.digest().joinToString("") {
             (it.toInt() and 0xff).toString(16).padStart(2, '0')
         }.let { actual ->
-            (actual == model.sha1).also { verified ->
+            (actual == model.sha256).also { verified ->
                 if (verified) {
                     prefs.edit().putBoolean(cacheKey, true).apply()
                 }
@@ -84,7 +84,7 @@ class ModelStore(private val context: Context) {
 
     fun deleteUnready(model: SpeechModel) {
         val file = fileFor(model)
-        if (file.exists() && (file.length() < model.minBytes || !hasExpectedSha1(model))) {
+        if (file.exists() && (file.length() < model.minBytes || !hasExpectedSha256(model))) {
             runCatching { file.delete() }
             clearIntegrityCache(model)
         }
@@ -123,7 +123,7 @@ class ModelStore(private val context: Context) {
     }
 
     private fun integrityCacheKey(model: SpeechModel, file: File): String {
-        return "${model.id}:${model.sha1}:${file.length()}:${file.lastModified()}"
+        return "${model.id}:${model.sha256}:${file.length()}:${file.lastModified()}"
     }
 
     private fun clearIntegrityCache(model: SpeechModel) {

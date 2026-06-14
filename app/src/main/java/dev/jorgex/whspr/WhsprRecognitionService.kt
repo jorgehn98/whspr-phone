@@ -186,12 +186,12 @@ class WhsprRecognitionService : RecognitionService() {
             return
         }
         mainHandler.removeCallbacks(timeoutRunnable)
-        stopRecorder()
+        discardRecorder()
     }
 
     override fun onDestroy() {
         mainHandler.removeCallbacks(timeoutRunnable)
-        stopRecorder()
+        discardRecorder()
         synchronized(lock) {
             currentCallback = null
             currentModelId = null
@@ -250,7 +250,7 @@ class WhsprRecognitionService : RecognitionService() {
                         modelChanged = true
                         return@runCatching
                     }
-                    modelOk = modelStore.hasExpectedSha1(model)
+                    modelOk = modelStore.hasExpectedSha256(model)
                     if (!modelOk) {
                         modelStore.delete(model)
                     } else if (settings.modelId == sessionModelId) {
@@ -316,7 +316,7 @@ class WhsprRecognitionService : RecognitionService() {
             processing = false
         }
         mainHandler.removeCallbacks(timeoutRunnable)
-        stopRecorder()
+        discardRecorder()
         notifyClient {
             listener.error(error)
         }
@@ -358,6 +358,12 @@ class WhsprRecognitionService : RecognitionService() {
         val activeRecorder = recorder ?: return null
         recorder = null
         return activeRecorder.stop()
+    }
+
+    private fun discardRecorder() {
+        val activeRecorder = recorder ?: return
+        recorder = null
+        activeRecorder.discard()
     }
 
     @TargetApi(Build.VERSION_CODES.S)

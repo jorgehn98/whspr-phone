@@ -199,7 +199,6 @@ Java_dev_jorgex_whspr_NativeWhisper_transcribeNative(
     params.print_timestamps = false;
     params.no_timestamps = true;
     params.no_context = true;
-    params.single_segment = true;
     params.translate = false;
 
     if (lang == "auto") {

@@ -113,7 +113,7 @@ class WhsprInputMethodService : InputMethodService() {
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
-        if (isListening) recorder.stop()
+        if (isListening) recorder.discard()
         inputSession += 1
         stopListening()
         isSecureInput = attribute?.let { isPasswordInput(it.inputType) } ?: false
@@ -123,7 +123,7 @@ class WhsprInputMethodService : InputMethodService() {
     }
 
     override fun onFinishInput() {
-        if (isListening) recorder.stop()
+        if (isListening) recorder.discard()
         inputSession += 1
         isSecureInput = false
         editorAction = EditorInfo.IME_ACTION_NONE
@@ -134,7 +134,7 @@ class WhsprInputMethodService : InputMethodService() {
 
     override fun onDestroy() {
         destroyed = true
-        if (isListening) recorder.stop()
+        if (isListening) recorder.discard()
         inputSession += 1
         dictationModelId = null
         isProcessing = false
@@ -278,7 +278,7 @@ class WhsprInputMethodService : InputMethodService() {
                     if (settings.modelId != sessionModelId) {
                         return@runCatching
                     }
-                    modelOk = modelStore.hasExpectedSha1(model)
+                    modelOk = modelStore.hasExpectedSha256(model)
                     if (!modelOk) {
                         modelStore.delete(model)
                     } else if (settings.modelId == sessionModelId) {

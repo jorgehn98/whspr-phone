@@ -33,7 +33,7 @@ No añadas dependencias sin aprobación explícita.
 app/src/main/java/dev/jorgex/whspr/   # Kotlin
   MainActivity.kt                      # UI mínima (sin Compose, Views a mano)
   AppSettings.kt                       # modelo + idioma persistidos
-  ModelCatalog.kt / ModelStore.kt      # catálogo y descarga/validación SHA-1 del modelo
+  ModelCatalog.kt / ModelStore.kt      # catálogo y descarga/validación SHA-256 del modelo
   AudioRecorder.kt                     # captura WAV 16 kHz mono PCM16
   LocalTranscriber.kt                  # puente Kotlin -> JNI
   WhsprInputMethodService.kt           # IME (teclado con botón de micrófono)
@@ -74,7 +74,7 @@ un analizador frágil ni dependencias nuevas.
 - **arm64-v8a + CPU-only**: nada de otras ABIs ni backends GPU.
 - **Release minificada y firmada localmente** con la debug key (para instalar por `adb`); sin modelos embebidos; APK < 4 MB.
 - **Sin red directa**: solo `DownloadManager` para el modelo; cero clientes HTTP/telemetría.
-- **Validación SHA-1** del modelo antes de transcribir; rechazar modelos parciales/corruptos.
+- **Validación SHA-256** del modelo antes de transcribir; rechazar modelos parciales/corruptos.
 - **Guards de sesión**: no pegar texto si cambia el foco; no permitir cambio de teclado mientras graba/transcribe; no dictar en campos de contraseña.
 - **Atribución de micrófono** correcta (contexto) y liberar el micro al devolver resultado.
 - No dejar marcadores TODO/stale ni referencias viejas del vendor: `check-static.ps1` lo verifica.

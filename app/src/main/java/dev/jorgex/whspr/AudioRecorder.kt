@@ -111,6 +111,25 @@ class AudioRecorder(private val context: Context) {
 
     @Synchronized
     fun stop(): File? {
+        val audioBytes = teardown()
+        if (audioBytes == null || audioBytes.isEmpty()) return null
+
+        return runCatching {
+            val output = File.createTempFile("whspr-dictation-", ".wav", context.cacheDir)
+            FileOutputStream(output).use { stream ->
+                stream.write(wavHeader(audioBytes.size))
+                stream.write(audioBytes)
+            }
+            output
+        }.getOrNull()
+    }
+
+    @Synchronized
+    fun discard() {
+        teardown()
+    }
+
+    private fun teardown(): ByteArray? {
         if (!recording && audioRecord == null && worker == null) return null
         recording = false
         audioRecord?.let { recorder ->
@@ -133,21 +152,11 @@ class AudioRecorder(private val context: Context) {
         }
         audioRecord = null
 
-        val audioBytes = synchronized(pcmLock) {
+        return synchronized(pcmLock) {
             val bytes = pcm.toByteArray()
             pcm = ByteArrayOutputStream()
             bytes
         }
-        if (audioBytes.isEmpty()) return null
-
-        return runCatching {
-            val output = File.createTempFile("whspr-dictation-", ".wav", context.cacheDir)
-            FileOutputStream(output).use { stream ->
-                stream.write(wavHeader(audioBytes.size))
-                stream.write(audioBytes)
-            }
-            output
-        }.getOrNull()
     }
 
     private fun wavHeader(pcmBytes: Int): ByteArray {
