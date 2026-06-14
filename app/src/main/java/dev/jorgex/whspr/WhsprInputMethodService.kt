@@ -193,31 +193,7 @@ class WhsprInputMethodService : InputMethodService() {
             showMessage(R.string.error_missing_microphone_permission)
             return
         }
-        if (settings.pendingModelId == model.id) {
-            when (modelStore.downloadStatus(settings.pendingDownloadId)) {
-                ModelDownloadStatus.Running -> {
-                    showMessage(R.string.error_missing_model)
-                    return
-                }
-                ModelDownloadStatus.Failed,
-                ModelDownloadStatus.None -> {
-                    modelStore.deleteUnready(model)
-                    settings.clearPendingDownload()
-                    showMessage(R.string.error_missing_model)
-                    return
-                }
-                ModelDownloadStatus.Success -> {
-                    settings.clearPendingDownload()
-                    if (!modelStore.isDownloaded(model)) {
-                        modelStore.delete(model)
-                        showMessage(R.string.error_missing_model)
-                        return
-                    }
-                }
-            }
-        }
-        if (!modelStore.isDownloaded(model)) {
-            modelStore.deleteUnready(model)
+        if (modelStore.resolveStatus(settings, model) { modelStore.isDownloaded(model) } != ModelStatus.Ready) {
             showMessage(R.string.error_missing_model)
             return
         }

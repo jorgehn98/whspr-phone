@@ -118,6 +118,22 @@ class ModelStore(private val context: Context) {
         }
     }
 
+    /**
+     * Estado del modelo seleccionado resolviendo la descarga pendiente: aplica las
+     * limpiezas (registro pendiente, archivo no utilizable) una sola vez. [usable]
+     * es la comprobación de uso elegida por el llamante —[isDownloaded] para grabar,
+     * [isReady] (con SHA) para la UI— y es perezosa: no se evalúa durante una descarga
+     * en curso. La decisión vive en [decideModelStatus] (pura, sin Android).
+     */
+    fun resolveStatus(settings: AppSettings, model: SpeechModel, usable: () -> Boolean): ModelStatus {
+        val pending = settings.pendingModelId == model.id
+        val status = if (pending) downloadStatus(settings.pendingDownloadId) else ModelDownloadStatus.None
+        val decision = decideModelStatus(pending, status, usable)
+        if (decision.clearPending) settings.clearPendingDownload()
+        if (decision.deleteUnusable) deleteUnready(model)
+        return decision.status
+    }
+
     private fun modelDir(): File {
         return context.getExternalFilesDir("models") ?: File(context.filesDir, "models")
     }
@@ -141,4 +157,48 @@ enum class ModelDownloadStatus {
     Running,
     Success,
     Failed,
+}
+
+enum class ModelStatus { Downloading, Ready, Failed, Missing }
+
+/** Qué reportar y qué efectos aplicar tras resolver el estado del modelo. */
+data class ModelDecision(
+    val status: ModelStatus,
+    val clearPending: Boolean,
+    val deleteUnusable: Boolean,
+)
+
+/**
+ * Decisión pura del estado del modelo a partir de los hechos observados; no toca
+ * disco ni prefs. Reúne la máquina de estados antes duplicada en MainActivity, el
+ * IME y el RecognitionService.
+ *
+ * @param pending si hay una descarga registrada para este modelo
+ * @param status estado de esa descarga (irrelevante si !pending)
+ * @param usable comprobación de uso del llamante (perezosa: solo se evalúa cuando
+ *   el modelo no está descargándose)
+ */
+fun decideModelStatus(
+    pending: Boolean,
+    status: ModelDownloadStatus,
+    usable: () -> Boolean,
+): ModelDecision {
+    if (pending) {
+        when (status) {
+            ModelDownloadStatus.Running ->
+                return ModelDecision(ModelStatus.Downloading, clearPending = false, deleteUnusable = false)
+            ModelDownloadStatus.Failed ->
+                return ModelDecision(ModelStatus.Failed, clearPending = true, deleteUnusable = true)
+            ModelDownloadStatus.None ->
+                return ModelDecision(ModelStatus.Missing, clearPending = true, deleteUnusable = true)
+            ModelDownloadStatus.Success -> Unit // descarga completa: decide la comprobación de uso
+        }
+    }
+    // Aquí: o no había descarga pendiente, o acababa de completarse (Success).
+    val failStatus = if (pending) ModelStatus.Failed else ModelStatus.Missing
+    return if (usable()) {
+        ModelDecision(ModelStatus.Ready, clearPending = pending, deleteUnusable = false)
+    } else {
+        ModelDecision(failStatus, clearPending = pending, deleteUnusable = true)
+    }
 }

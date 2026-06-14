@@ -280,29 +280,7 @@ class WhsprRecognitionService : RecognitionService() {
     }
 
     private fun modelReady(model: SpeechModel): Boolean {
-        if (settings.pendingModelId == model.id) {
-            when (modelStore.downloadStatus(settings.pendingDownloadId)) {
-                ModelDownloadStatus.Running -> return false
-                ModelDownloadStatus.Failed,
-                ModelDownloadStatus.None -> {
-                    modelStore.deleteUnready(model)
-                    settings.clearPendingDownload()
-                    return false
-                }
-                ModelDownloadStatus.Success -> {
-                    settings.clearPendingDownload()
-                    if (!modelStore.isDownloaded(model)) {
-                        modelStore.delete(model)
-                        return false
-                    }
-                }
-            }
-        }
-        if (!modelStore.isDownloaded(model)) {
-            modelStore.deleteUnready(model)
-            return false
-        }
-        return true
+        return modelStore.resolveStatus(settings, model) { modelStore.isDownloaded(model) } == ModelStatus.Ready
     }
 
     private fun fail(listener: Callback, error: Int) {

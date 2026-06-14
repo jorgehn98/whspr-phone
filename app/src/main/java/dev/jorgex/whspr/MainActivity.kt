@@ -90,7 +90,7 @@ class MainActivity : Activity() {
             text = getString(R.string.download_model)
             setOnClickListener {
                 val model = ModelCatalog.byId(settings.modelId)
-                if (modelState(model) != UiModelState.Downloading) {
+                if (modelState(model) != ModelStatus.Downloading) {
                     clearPendingDownload()
                     val downloadId = modelStore.download(model)
                     if (downloadId > 0L) {
@@ -276,22 +276,22 @@ class MainActivity : Activity() {
         }, "whspr-status").start()
     }
 
-    private fun applyModelState(micReady: Boolean, modelState: UiModelState) {
+    private fun applyModelState(micReady: Boolean, modelState: ModelStatus) {
         status.text = getString(
             R.string.status,
             if (micReady) getString(R.string.ready) else getString(R.string.missing),
             labelFor(modelState),
         )
-        downloadButton.isEnabled = modelState != UiModelState.Ready && modelState != UiModelState.Downloading
+        downloadButton.isEnabled = modelState != ModelStatus.Ready && modelState != ModelStatus.Downloading
         downloadButton.text = when (modelState) {
-            UiModelState.Ready -> getString(R.string.model_downloaded)
-            UiModelState.Downloading -> getString(R.string.downloading)
+            ModelStatus.Ready -> getString(R.string.model_downloaded)
+            ModelStatus.Downloading -> getString(R.string.downloading)
             else -> getString(R.string.download_model)
         }
-        downloadTrash.visibility = if (modelState == UiModelState.Ready) View.VISIBLE else View.GONE
+        downloadTrash.visibility = if (modelState == ModelStatus.Ready) View.VISIBLE else View.GONE
 
         refreshHandler.removeCallbacks(refreshRunnable)
-        if (modelState == UiModelState.Downloading) {
+        if (modelState == ModelStatus.Downloading) {
             refreshHandler.postDelayed(refreshRunnable, 1_000)
         }
     }
@@ -312,46 +312,16 @@ class MainActivity : Activity() {
         settings.clearPendingDownload()
     }
 
-    private fun modelState(model: SpeechModel): UiModelState {
-        if (settings.pendingModelId == model.id) {
-            return when (modelStore.downloadStatus(settings.pendingDownloadId)) {
-                ModelDownloadStatus.Running -> UiModelState.Downloading
-                ModelDownloadStatus.Success -> {
-                    settings.clearPendingDownload()
-                    if (modelStore.isReady(model)) {
-                        UiModelState.Ready
-                    } else {
-                        modelStore.delete(model)
-                        UiModelState.Failed
-                    }
-                }
-                ModelDownloadStatus.Failed -> {
-                    settings.clearPendingDownload()
-                    modelStore.deleteUnready(model)
-                    UiModelState.Failed
-                }
-                ModelDownloadStatus.None -> {
-                    settings.clearPendingDownload()
-                    modelStore.deleteUnready(model)
-                    UiModelState.Missing
-                }
-            }
-        }
-
-        if (modelStore.isReady(model)) {
-            return UiModelState.Ready
-        }
-
-        modelStore.deleteUnready(model)
-        return UiModelState.Missing
+    private fun modelState(model: SpeechModel): ModelStatus {
+        return modelStore.resolveStatus(settings, model) { modelStore.isReady(model) }
     }
 
-    private fun labelFor(state: UiModelState): String {
+    private fun labelFor(state: ModelStatus): String {
         return when (state) {
-            UiModelState.Ready -> getString(R.string.ready)
-            UiModelState.Missing -> getString(R.string.missing)
-            UiModelState.Downloading -> getString(R.string.downloading)
-            UiModelState.Failed -> getString(R.string.failed)
+            ModelStatus.Ready -> getString(R.string.ready)
+            ModelStatus.Missing -> getString(R.string.missing)
+            ModelStatus.Downloading -> getString(R.string.downloading)
+            ModelStatus.Failed -> getString(R.string.failed)
         }
     }
 
@@ -389,11 +359,4 @@ class MainActivity : Activity() {
     companion object {
         private const val REQUEST_RECORD_AUDIO = 10
     }
-}
-
-private enum class UiModelState {
-    Ready,
-    Missing,
-    Downloading,
-    Failed,
 }
