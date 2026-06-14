@@ -48,7 +48,9 @@ class BubbleMicView(context: Context) : View(context) {
     private var gridTop = 0f
     private var grid: Array<CharArray> = emptyArray()
 
-    private fun palette(): WhsprPalette = WhsprColors.forContext(context)
+    // El modo claro/oscuro solo cambia recreando la view (IME.onConfigurationChanged),
+    // así que la paleta se resuelve una vez y no en cada frame de onDraw.
+    private val palette: WhsprPalette = WhsprColors.forContext(context)
 
     fun setMode(newMode: Mode) {
         if (mode == newMode) return
@@ -102,10 +104,10 @@ class BubbleMicView(context: Context) : View(context) {
     private fun buildGlow() {
         if (width == 0 || height == 0) return
         val r = min(width, height) / 2f * 1.05f
-        val hot = hotColor(palette())
+        val hot = hotColor(palette)
         glowPaint.shader = RadialGradient(
             width / 2f, height / 2f, r,
-            intArrayOf(withAlpha(hot, 70), withAlpha(hot, 0)),
+            intArrayOf(WhsprColors.withAlpha(hot, 70), WhsprColors.withAlpha(hot, 0)),
             floatArrayOf(0f, 1f), Shader.TileMode.CLAMP,
         )
     }
@@ -132,7 +134,7 @@ class BubbleMicView(context: Context) : View(context) {
         if (width == 0 || height == 0) return
         if (cols == 0 || rows == 0) ensureGrid()
         if (glowPaint.shader == null) buildGlow()
-        val p = palette()
+        val p = palette
         val t = (AnimationUtils.currentAnimationTimeMillis() - startTime) / 1000f
 
         val amp: Float
@@ -176,7 +178,7 @@ class BubbleMicView(context: Context) : View(context) {
         canvas.drawCircle(cx, cy, min(width, height) / 2f * 1.05f, glowPaint)
 
         // capa base (atenuada)
-        textPaint.color = withAlpha(if (mode == Mode.DISABLED) p.disabled else p.accentMuted, (110f * intensity + 45f).toInt())
+        textPaint.color = WhsprColors.withAlpha(if (mode == Mode.DISABLED) p.disabled else p.accentMuted, (110f * intensity + 45f).toInt())
         for (r in 0 until rows) {
             canvas.drawText(grid[r], 0, cols, gridLeft, gridTop - ascent + r * cellH, textPaint)
         }
@@ -187,7 +189,7 @@ class BubbleMicView(context: Context) : View(context) {
         clipPath.addCircle(cx, cy, coreR, Path.Direction.CW)
         val save = canvas.save()
         canvas.clipPath(clipPath)
-        textPaint.color = withAlpha(hotColor(p), (200f * intensity + 55f).toInt())
+        textPaint.color = WhsprColors.withAlpha(hotColor(p), (200f * intensity + 55f).toInt())
         for (r in 0 until rows) {
             canvas.drawText(grid[r], 0, cols, gridLeft, gridTop - ascent + r * cellH, textPaint)
         }
@@ -196,10 +198,5 @@ class BubbleMicView(context: Context) : View(context) {
         if (animating) {
             postInvalidateOnAnimation()
         }
-    }
-
-    private fun withAlpha(color: Int, a: Int): Int {
-        val c = if (a < 0) 0 else if (a > 255) 255 else a
-        return (color and 0x00FFFFFF) or (c shl 24)
     }
 }

@@ -7,8 +7,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.drawable.Drawable
-import android.graphics.drawable.GradientDrawable
-import android.graphics.drawable.RippleDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -129,8 +127,8 @@ class MainActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            val side = (24 * resources.displayMetrics.density).toInt()
-            val top = (72 * resources.displayMetrics.density).toInt()
+            val side = dp(24)
+            val top = dp(72)
             setPadding(side, top, side, side)
             addView(title)
             addView(description)
@@ -171,9 +169,9 @@ class MainActivity : Activity() {
         decorateButton(button)
         val params = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
-            (52 * resources.displayMetrics.density).toInt(),
+            dp(52),
         )
-        params.setMargins(0, (8 * resources.displayMetrics.density).toInt(), 0, 0)
+        params.setMargins(0, dp(8), 0, 0)
         button.layoutParams = params
     }
 
@@ -182,19 +180,18 @@ class MainActivity : Activity() {
             setImageResource(R.drawable.ic_trash)
             scaleType = ImageView.ScaleType.FIT_CENTER
             setColorFilter(WhsprColors.forContext(this@MainActivity).accent)
-            val pad = (12 * resources.displayMetrics.density).toInt()
+            val pad = this@MainActivity.dp(12)
             setPadding(pad, pad, pad, pad)
             setOnClickListener { onClick() }
         }
     }
 
     private fun buttonRow(button: Button, trash: ImageView): LinearLayout {
-        val d = resources.displayMetrics.density
-        val height = (52 * d).toInt()
+        val height = dp(52)
         decorateButton(button)
         button.layoutParams = LinearLayout.LayoutParams(0, height, 1f)
-        val trashParams = LinearLayout.LayoutParams((44 * d).toInt(), height)
-        trashParams.setMargins((8 * d).toInt(), 0, 0, 0)
+        val trashParams = LinearLayout.LayoutParams(dp(44), height)
+        trashParams.setMargins(dp(8), 0, 0, 0)
         trash.layoutParams = trashParams
         return LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -203,7 +200,7 @@ class MainActivity : Activity() {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
             )
-            rowParams.setMargins(0, (8 * d).toInt(), 0, 0)
+            rowParams.setMargins(0, dp(8), 0, 0)
             layoutParams = rowParams
             addView(button)
             addView(trash)
@@ -212,13 +209,7 @@ class MainActivity : Activity() {
 
     private fun buttonBackground(): Drawable {
         val palette = WhsprColors.forContext(this)
-        val shape = GradientDrawable().apply {
-            cornerRadius = 14 * resources.displayMetrics.density
-            setColor(palette.surface)
-            setStroke(resources.displayMetrics.density.toInt(), palette.surfaceStroke)
-        }
-        val ripple = (palette.accent and 0x00FFFFFF) or 0x40000000
-        return RippleDrawable(ColorStateList.valueOf(ripple), shape, null)
+        return surfaceRippleBackground(palette, dp(14).toFloat(), dp(1), palette.surfaceStroke)
     }
 
     private fun buttonTextColors(): ColorStateList {

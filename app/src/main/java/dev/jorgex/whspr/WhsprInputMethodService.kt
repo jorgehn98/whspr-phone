@@ -1,12 +1,10 @@
 package dev.jorgex.whspr
 
 import android.content.Intent
-import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.Typeface
-import android.graphics.drawable.RippleDrawable
 import android.inputmethodservice.InputMethodService
 import android.os.Handler
 import android.os.Looper
@@ -173,17 +171,7 @@ class WhsprInputMethodService : InputMethodService() {
 
     private fun keyBackground(): Drawable {
         val palette = WhsprColors.forContext(this)
-        val shape = GradientDrawable().apply {
-            cornerRadius = dp(5).toFloat()
-            setColor(palette.surface)
-            setStroke(dp(1), palette.accentMuted)
-        }
-        val ripple = (palette.accent and 0x00FFFFFF) or 0x40000000
-        return RippleDrawable(ColorStateList.valueOf(ripple), shape, null)
-    }
-
-    private fun dp(value: Int): Int {
-        return (value * resources.displayMetrics.density).toInt()
+        return surfaceRippleBackground(palette, dp(5).toFloat(), dp(1), palette.accentMuted)
     }
 
     private fun toggleDictation() {

@@ -67,4 +67,10 @@ object WhsprColors {
     }
 
     fun forContext(context: Context): WhsprPalette = if (isDark(context)) Dark else Light
+
+    /** Devuelve [color] (RGB) con el canal alfa fijado a [alpha] (0..255). */
+    fun withAlpha(color: Int, alpha: Int): Int {
+        val a = alpha.coerceIn(0, 255)
+        return (color and 0x00FFFFFF) or (a shl 24)
+    }
 }
