@@ -16,6 +16,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -53,17 +54,13 @@ class WhsprInputMethodService : InputMethodService() {
             )
         }
 
-        val settingsButton = TextView(this).apply {
-            text = "⚙"
-            textSize = 20f
-            includeFontPadding = false
-            gravity = Gravity.CENTER
-            setPadding(dp(4), 0, dp(4), 0)
-            setTextColor(palette.accent)
-            val params = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                dp(44),
-            )
+        val settingsButton = ImageView(this).apply {
+            setImageResource(R.drawable.ic_settings)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            setColorFilter(palette.accent)
+            val pad = dp(10)
+            setPadding(pad, pad, pad, pad)
+            val params = LinearLayout.LayoutParams(dp(44), dp(44))
             params.setMargins(dp(2), 0, dp(6), 0)
             layoutParams = params
             setOnClickListener { openSettings() }
