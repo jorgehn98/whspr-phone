@@ -1,5 +1,6 @@
 package dev.jorgex.whspr
 
+import android.content.Intent
 import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.drawable.Drawable
@@ -52,6 +53,22 @@ class WhsprInputMethodService : InputMethodService() {
             )
         }
 
+        val settingsButton = TextView(this).apply {
+            text = "⚙"
+            textSize = 22f
+            includeFontPadding = false
+            gravity = Gravity.CENTER
+            setPadding(dp(4), 0, dp(4), 0)
+            setTextColor(palette.accent)
+            val params = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                dp(52),
+            )
+            params.setMargins(dp(2), 0, dp(6), 0)
+            layoutParams = params
+            setOnClickListener { openSettings() }
+        }
+
         val bubble = BubbleMicView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -72,6 +89,7 @@ class WhsprInputMethodService : InputMethodService() {
         val controls = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
+            addView(settingsButton)
             addView(key(getString(R.string.key_space)) {
                 pressSpace()
             })
@@ -88,6 +106,12 @@ class WhsprInputMethodService : InputMethodService() {
         root.addView(controls)
         updateMicButton()
         return root
+    }
+
+    private fun openSettings() {
+        val intent = Intent(this, MainActivity::class.java)
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(intent)
     }
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
