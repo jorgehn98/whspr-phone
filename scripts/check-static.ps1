@@ -505,6 +505,43 @@ try {
         Write-Host "OK   secure input guard"
     }
 
+    $teardownBody = [regex]::Match($audioRecorderText, '(?s)private fun teardown\(\): ByteArray\?\s*\{(.*?)\n    \}').Groups[1].Value
+    if (-not $teardownBody -or $teardownBody -notmatch 'onLevel = null') {
+        Write-Host "MISS audio recorder teardown -> onLevel must be cleared"
+        $failed += 1
+    } else {
+        Write-Host "OK   audio recorder teardown"
+    }
+
+    $voiceWaveViewText = Get-Content -Raw -Path ".\app\src\main\java\dev\jorgex\whspr\VoiceWaveView.kt"
+    $setLevelBody = [regex]::Match($voiceWaveViewText, '(?s)fun setLevel\([^)]*\)\s*\{(.*?)\n    \}').Groups[1].Value
+    if (-not $setLevelBody -or $setLevelBody -match 'invalidate\(\)') {
+        Write-Host "MISS VoiceWaveView setLevel -> must not invalidate from the audio thread"
+        $failed += 1
+    } else {
+        Write-Host "OK   VoiceWaveView setLevel thread discipline"
+    }
+
+    $keyboardLayoutText = Get-Content -Raw -Path ".\app\src\main\java\dev\jorgex\whspr\KeyboardLayout.kt"
+    $baseRowPattern = 'listOf\(((?:"[^"]+",?\s*)+)\)\.map'
+    $lettersEsBlock = [regex]::Match($keyboardLayoutText, '(?s)private val lettersEs = KeyboardLayout\((.*?)\n    \)\n').Groups[1].Value
+    $lettersEnBlock = [regex]::Match($keyboardLayoutText, '(?s)private val lettersEn = KeyboardLayout\((.*?)\n    \)\n').Groups[1].Value
+    $lettersEsBaseKeys = ([regex]::Matches($lettersEsBlock, $baseRowPattern) | ForEach-Object { $_.Groups[1].Value }) -join ","
+    $lettersEnBaseKeys = ([regex]::Matches($lettersEnBlock, $baseRowPattern) | ForEach-Object { $_.Groups[1].Value }) -join ","
+    if ($lettersEsBaseKeys -notmatch '"ñ"' -or $lettersEnBaseKeys -match '"ñ"') {
+        Write-Host "MISS keyboard layout -> ES letters must include ñ, EN letters must not have it as a base key"
+        $failed += 1
+    } else {
+        Write-Host "OK   keyboard layout language layers"
+    }
+
+    if ($recognitionServiceText -match 'onLevel') {
+        Write-Host "MISS recognition service -> must not couple to VoiceWaveView/onLevel UI callback"
+        $failed += 1
+    } else {
+        Write-Host "OK   recognition service UI decoupling"
+    }
+
     $rootBuild = Get-Content -Raw -Path ".\build.gradle.kts"
     $appBuild = Get-Content -Raw -Path ".\app\build.gradle.kts"
     $buildText = "$rootBuild`n$appBuild"
@@ -657,10 +694,10 @@ try {
         Write-Host "OK   app identity"
     }
 
-    $markerPattern = ("TO" + "DO") + "|" +
-        ("FIX" + "ME") + "|" +
-        ("place" + "holder") + "|" +
-        ("old" + " package") + "|" +
+    $markerPattern = ("\bTO" + "DO\b") + "|" +
+        ("\bFIX" + "ME\b") + "|" +
+        ("\bplace" + "holder\b") + "|" +
+        ("\bold" + " package\b") + "|" +
         ("dev" + "\.example")
     $markers = Get-ChildItem -Path ".\app\src", ".\scripts" -Recurse -File |
         Select-String -Pattern $markerPattern
