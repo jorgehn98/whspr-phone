@@ -20,7 +20,7 @@ MVP inicial:
 - Permiso de micrófono.
 - Descarga de modelo local.
 - Validación SHA-256 del modelo antes de transcribir.
-- Ajustes mínimos: modelo, idioma, posición del punto (izquierda/derecha del espacio) y fila de números (mostrar/ocultar en letras).
+- Ajustes mínimos: modelo, idioma de dictado en la pantalla principal; posición del punto (izquierda/derecha del espacio) y fila de números (mostrar/ocultar en letras) en **Más ajustes**.
 - Los ajustes del teclado se releen al volver a un campo de texto: se aplican sin reiniciar la app.
 - Filtro de etiquetas no verbales de Whisper (p. ej. "[MÚSICA]") en dictados sin habla: no se pega nada.
 - Botón de micrófono en el teclado.
@@ -41,6 +41,7 @@ La app no usa nube. Descarga el modelo al almacenamiento propio de la app y tran
 7. En cualquier campo de texto, pulsa el micrófono para dictar o escribe normalmente.
 8. Usa **Globo** para cambiar entre ES (ñ, tildes) e EN (ñ en long-press, tildes en long-press).
 9. Pulsa **!#1** para acceder a símbolos; **[1/2]** y **[2/2]** para navegar entre páginas.
+10. Pulsa **Más ajustes** para abrir la sección **Teclado**: posición del punto y fila de números.
 
 ## Privacidad
 
