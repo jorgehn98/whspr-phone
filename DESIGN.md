@@ -35,23 +35,29 @@ el contenido es claro sobre carbón; en claro, oscuro sobre blanco. Tokens (rol)
 
 ## Componentes
 
-### Burbuja del micro (`BubbleMicView`)
+### Teclado QWERTY (`KeyboardView`)
 
-Orbe de **ASCII art** dibujado con `Canvas`: una rejilla de caracteres
-monoespaciados (` .:-=+*#%@`) que ondula. El centro brilla con el acento y los
-bordes se atenúan. Estados (`Mode`):
+Grid de teclas renderizado dinámicamente desde `KeyboardLayout` (datos puros sin
+lógica). Características:
 
-- **IDLE**: ondulación lenta, brillo tenue. Ámbar `accent`.
-- **LISTENING**: ondas rápidas y amplias, núcleo brillante. `accentBright`.
-- **PROCESSING**: parpadeo/escaneo rápido. `accentDeep`.
-- **DISABLED**: gris `disabled`, estático (campos de contraseña).
+- **Layouts por idioma**: ES (con ñ, tildes completas) e EN (con ñ/tildes en long-press).
+- **Capas**: LETTERS (ES/EN), SYMBOLS_1 (operadores, puntuación), SYMBOLS_2 (símbolos especiales).
+- **Teclas especiales**: SHIFT (con doble tap para CAPS_LOCK), BACKSPACE (repetición
+  hold 400ms/50ms), SPACE, PERIOD (coma en long-press), ENTER, MIC (micrófono).
+- **Long-press**: variantes de tildes/acentos (é, ú, ñ, etc.) sobre caracteres.
+- **Estado visual**: shift activo se marca con `accentBright`; CAPS_LOCK igual.
+- **Tipografía**: monoespaciada, sin Compose, todo con `TextView` en `LinearLayout`.
+- **Colores**: superficie redondeada (`Surface` + `SurfaceStroke`), texto `TextPrimary`.
 
-Animación por tiempo (no reactiva al audio). El IME fija el estado con `setMode`.
-Sin texto "toca para dictar": la afordancia es obvia. La etiqueta inferior solo
-aparece para "Transcribiendo…" y campos no permitidos.
+### Visualizador de voz (`VoiceWaveView`)
 
-### Teclas (Espacio / Borrar / Intro / Siguiente)
+Barras verticales (9 unidades) centradas y simétricas, dibujadas con `Canvas`.
+Estados (`Mode`):
 
-Superficie redondeada (`Surface` + borde `SurfaceStroke`), texto `TextPrimary`,
-ripple ámbar. Altura cómoda y separadas del borde inferior para no chocar con los
-botones del sistema (cambio de teclado / ocultar).
+- **RECORDING**: barras reactivas al nivel de audio (RMS 0..1 suavizado), color `accentBright`.
+  Las barras centrales responden más (simulan ecualizador). Jitter para animar.
+- **TRANSCRIBING**: barrido sinusoidal de barras, color `accentDeep`. Anima mientras procesa.
+
+Suavizado con attack rápido / decay lento. El nivel se actualiza desde el hilo de
+audio (volátil). La vista se anima automáticamente con `postInvalidateOnAnimation`.
+Sustituye visualmente a la antigua burbuja ASCII — sin rejilla, solo barras monótonas.

@@ -94,17 +94,50 @@ Pruebas mínimas antes de dar la app por buena.
 
 ## Teclado
 
+### Escritura manual
+
 1. Abrir cualquier app con campo de texto normal.
 2. Cambiar a Whspr.
-3. Tocar micrófono.
-4. Hablar una frase corta.
-5. Tocar de nuevo para parar.
-6. Confirmar que el texto aparece en el campo activo.
+3. Escribir una frase con letras, números, símbolos.
+4. Confirmar que el texto aparece en el campo activo.
+5. Pulsar **Borrar** y confirmar que elimina un carácter. Mantener pulsado y confirmar que repite (400ms inicio, 50ms intervalo).
+6. Escribir un emoji con otro teclado, volver a Whspr y confirmar que **Borrar** lo elimina completo.
+7. Pulsar **Espacio** dos veces y confirmar que no duplica espacios seguidos.
+8. Pulsar **Globo** (🌐) y confirmar que cambia entre ES (ñ, tildes directas) e EN (ñ/tildes en long-press).
+9. Pulsar **!#1** y confirmar que muestra SYMBOLS_1 (operadores, puntuación).
+10. Pulsar **[1/2]** para ir a SYMBOLS_2 (símbolos especiales). Pulsar **[2/2]** para volver a SYMBOLS_1.
+11. Pulsar **ABC** para volver a LETTERS.
+
+### Mayúsculas
+
+1. Pulsar **SHIFT** una vez. Confirmar que la siguiente letra se escribe en mayúsculas y el indicador muestra acento claro.
+2. Después de escribir una letra mayúscula, confirmar que SHIFT se apaga automáticamente.
+3. Pulsar **SHIFT** dos veces rápido (< 300ms) para activar CAPS_LOCK. Confirmar que el indicador brilla.
+4. Escribir varias letras en mayúsculas.
+5. Pulsar **SHIFT** de nuevo para apagar CAPS_LOCK.
+6. Con SHIFT o CAPS activo, usar long-press para escribir tildes/acentos: deben salir en mayúsculas (É, Ñ, etc.).
+
+### Long-press
+
+1. Mantener pulsado **E** (ES/EN) y confirmar que aparece popup con variantes: e, é, è, ë, ê.
+2. Pulsar una variante del popup; confirmar que aparece en el campo y el popup se cierra.
+3. Confirmar que long-press en punto (`.`) ofrece también coma (`,`).
+4. Confirmar que long-press en A ofrece á, à, ä, â, ã.
+5. Confirmar que long-press en O ofrece ó, ò, ö, ô, õ.
+6. Confirmar que long-press en Ñ (ES) y N (EN) ofrecen ñ.
+7. Confirmar que long-press en C ofrece ç.
+
+### Dictado de voz
+
+1. Abrir un campo de texto y cambiar a Whspr.
+2. Pulsar el micrófono (🎙). Confirmar que el teclado desaparece y muestra barras visualizadoras.
+3. Hablar una frase corta. Confirmar que las barras reaccionan al nivel de audio (accentBright).
+4. Pulsar de nuevo (en la onda o el micrófono) para parar la grabación.
+5. Confirmar que pasa a estado TRANSCRIBING (barras con barrido sinusoidal, accentDeep).
+6. Esperar a que transcribe. Confirmar que el teclado reaparece y el texto se inserta en el campo.
 7. Confirmar que el dictado deja separación final sin duplicar espacios.
-8. En un campo de búsqueda o chat, tocar **Intro** y confirmar que ejecuta la acción del campo si existe.
-9. En un campo multilínea, tocar **Intro** y confirmar que inserta salto de línea.
-10. Escribir un emoji con otro teclado, volver a Whspr y confirmar que **Borrar** elimina el emoji completo.
-11. Tocar **Espacio** dos veces y confirmar que no duplica espacios seguidos.
+8. En un campo de búsqueda o chat, pulsar **Intro** desde el teclado tras escribir/dictar, y confirmar que ejecuta la acción del campo si existe.
+9. En un campo multilínea, pulsar **Intro** y confirmar que inserta salto de línea.
 
 ## Dictado de voz Android
 

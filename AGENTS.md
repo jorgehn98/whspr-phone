@@ -32,12 +32,16 @@ No añadas dependencias sin aprobación explícita.
 ```
 app/src/main/java/dev/jorgex/whspr/   # Kotlin
   MainActivity.kt                      # UI mínima (sin Compose, Views a mano)
-  AppSettings.kt                       # modelo + idioma persistidos
+  AppSettings.kt                       # modelo + idioma de layout + idioma de dictado persistidos
   ModelCatalog.kt / ModelStore.kt      # catálogo y descarga/validación SHA-256 del modelo
-  AudioRecorder.kt                     # captura WAV 16 kHz mono PCM16
+  KeyboardLayout.kt                    # modelo declarativo de teclado (layouts, capas, Key data)
+  KeyboardView.kt                      # grid de TextViews, shift/capas/long-press/repeat de borrado
+  VoiceWaveView.kt                     # visualizador de barras para RECORDING/TRANSCRIBING
+  AudioRecorder.kt                     # captura WAV 16 kHz mono PCM16, callback onLevel (RMS)
   LocalTranscriber.kt                  # puente Kotlin -> JNI
-  WhsprInputMethodService.kt           # IME (teclado con botón de micrófono)
+  WhsprInputMethodService.kt           # IME: máquina de estados KEYBOARD/RECORDING/TRANSCRIBING
   WhsprRecognitionService.kt           # proveedor de voz Android (RecognitionService)
+  Theme.kt                             # paleta monocroma (WhsprColors, WhsprPalette)
 app/src/main/cpp/native_whisper.cpp    # JNI + caché nativa del contexto whisper
 app/src/main/res/xml/                  # input_method, recognition_service, data_extraction_rules
 scripts/                               # build/install/verify (PowerShell, Windows)
