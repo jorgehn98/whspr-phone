@@ -12,16 +12,19 @@ fun Context.dp(value: Int): Int = (value * resources.displayMetrics.density).toI
 /**
  * Fondo compartido de botones y teclas de Whspr: superficie redondeada con borde
  * y ripple del acento. Centraliza la receta usada por MainActivity y el teclado.
+ * [fillColor] por defecto es [WhsprPalette.surface]; se puede invertir (p. ej.
+ * CAPS_LOCK con [WhsprPalette.accentBright]) sin duplicar la receta del shape.
  */
 fun surfaceRippleBackground(
     palette: WhsprPalette,
     cornerRadiusPx: Float,
     strokeWidthPx: Int,
     strokeColor: Int,
+    fillColor: Int = palette.surface,
 ): Drawable {
     val shape = GradientDrawable().apply {
         cornerRadius = cornerRadiusPx
-        setColor(palette.surface)
+        setColor(fillColor)
         setStroke(strokeWidthPx, strokeColor)
     }
     val ripple = WhsprColors.withAlpha(palette.accent, 0x40)

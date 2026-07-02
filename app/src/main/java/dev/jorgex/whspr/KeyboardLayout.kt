@@ -61,19 +61,16 @@ object KeyboardLayouts {
         "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
     ).map { charKey(it) }
 
-    // U+FE0E (selector de variación de texto) fuerza render monocromo en las
-    // teclas de UI donde la fuente lo soporte (DESIGN.md exige monocromo, sin
-    // color de acento). Solo en glifos de UI: los caracteres de contenido de
-    // SYMBOLS_2 se insertan tal cual y no llevan selector.
-    private const val TEXT_PRESENTATION = "︎"
-
+    // Las teclas con icono propio (SHIFT, BACKSPACE, GLOBE, MIC, ENTER) llevan
+    // label vacío: KeyboardView decide el render (icono vectorial tintado) por
+    // KeyType, no por texto. contentDescription cubre la accesibilidad.
     private fun bottomRow(firstLabel: String, firstType: KeyType) = listOf(
         Key(label = firstLabel, type = firstType, weight = 1.5f),
-        Key(label = "🌐$TEXT_PRESENTATION", type = KeyType.GLOBE, weight = 1.5f),
+        Key(label = "", type = KeyType.GLOBE, weight = 1.5f),
         Key(label = " ", type = KeyType.SPACE, weight = 4f),
         Key(label = ".", type = KeyType.PERIOD, weight = 1f, longPress = listOf(",")),
-        Key(label = "🎙$TEXT_PRESENTATION", type = KeyType.MIC, weight = 1.5f),
-        Key(label = "⏎", type = KeyType.ENTER, weight = 1.5f),
+        Key(label = "", type = KeyType.MIC, weight = 1.5f),
+        Key(label = "", type = KeyType.ENTER, weight = 1.5f),
     )
 
     private val lettersEs = KeyboardLayout(
@@ -95,11 +92,11 @@ object KeyboardLayouts {
                     else -> charKey(it)
                 }
             },
-            listOf(Key(label = "⇧", type = KeyType.SHIFT, weight = 1.5f)) +
+            listOf(Key(label = "", type = KeyType.SHIFT, weight = 1.5f)) +
                 listOf("z", "x", "c", "v", "b", "n", "m").map {
                     if (it == "c") charKey(it, listOf("ç")) else charKey(it)
                 } +
-                listOf(Key(label = "⌫", type = KeyType.BACKSPACE, weight = 1.5f)),
+                listOf(Key(label = "", type = KeyType.BACKSPACE, weight = 1.5f)),
             bottomRow(firstLabel = "!#1", firstType = KeyType.LAYER_SYMBOLS),
         ),
     )
@@ -122,7 +119,7 @@ object KeyboardLayouts {
                     else -> charKey(it)
                 }
             },
-            listOf(Key(label = "⇧", type = KeyType.SHIFT, weight = 1.5f)) +
+            listOf(Key(label = "", type = KeyType.SHIFT, weight = 1.5f)) +
                 listOf("z", "x", "c", "v", "b", "n", "m").map {
                     when (it) {
                         "c" -> charKey(it, listOf("ç"))
@@ -130,7 +127,7 @@ object KeyboardLayouts {
                         else -> charKey(it)
                     }
                 } +
-                listOf(Key(label = "⌫", type = KeyType.BACKSPACE, weight = 1.5f)),
+                listOf(Key(label = "", type = KeyType.BACKSPACE, weight = 1.5f)),
             bottomRow(firstLabel = "!#1", firstType = KeyType.LAYER_SYMBOLS),
         ),
     )
@@ -140,9 +137,9 @@ object KeyboardLayouts {
             digitRow(),
             listOf("+", "×", "÷", "=", "/", "_", "<", ">", "[", "]").map { charKey(it) },
             listOf("!", "@", "#", "€", "%", "^", "&", "*", "(", ")").map { charKey(it) },
-            listOf(Key(label = "[1/2]", type = KeyType.LAYER_PAGE, weight = 1.5f)) +
+            listOf(Key(label = "1/2", type = KeyType.LAYER_PAGE, weight = 1.5f)) +
                 listOf("-", "'", "\"", ":", ";", ",", "?").map { charKey(it) } +
-                listOf(Key(label = "⌫", type = KeyType.BACKSPACE, weight = 1.5f)),
+                listOf(Key(label = "", type = KeyType.BACKSPACE, weight = 1.5f)),
             bottomRow(firstLabel = "ABC", firstType = KeyType.LAYER_ABC),
         ),
     )
@@ -153,9 +150,9 @@ object KeyboardLayouts {
             listOf("`", "~", "\\", "|", "{", "}", "$", "£", "¥", "₩").map { charKey(it) },
             listOf("°", "•", "○", "●", "□", "■", "♤", "♡", "◇", "♧")
                 .map { charKey(it) },
-            listOf(Key(label = "[2/2]", type = KeyType.LAYER_PAGE, weight = 1.5f)) +
+            listOf(Key(label = "2/2", type = KeyType.LAYER_PAGE, weight = 1.5f)) +
                 listOf("☆", "▪", "¤", "《", "》", "¡", "¿").map { charKey(it) } +
-                listOf(Key(label = "⌫", type = KeyType.BACKSPACE, weight = 1.5f)),
+                listOf(Key(label = "", type = KeyType.BACKSPACE, weight = 1.5f)),
             bottomRow(firstLabel = "ABC", firstType = KeyType.LAYER_ABC),
         ),
     )

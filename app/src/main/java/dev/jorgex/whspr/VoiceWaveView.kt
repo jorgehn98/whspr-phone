@@ -27,10 +27,23 @@ class VoiceWaveView(context: Context) : View(context) {
     enum class Mode { RECORDING, TRANSCRIBING }
 
     private companion object {
-        const val BAR_COUNT = 9
+        const val BAR_COUNT = 19
         const val BAR_GAP_RATIO = 0.4f
         const val MIN_HEIGHT_RATIO = 0.08f
         const val DECAY = 0.92f
+
+        // Rango útil de voz normal en el RMS ya normalizado que llega por [setLevel]
+        // (0f..1f, pero la voz normal solo ocupa ~0.02..0.4 de esa escala). Se
+        // remapea a 0..1 con saturación para que la onda se note con voz normal
+        // en vez de quedarse casi plana. Puramente de render: no toca [setLevel].
+        const val GAIN_FLOOR = 0.02f
+        const val GAIN_CEILING = 0.4f
+    }
+
+    /** Remapea [rawLevel] del rango útil de voz a 0..1 con saturación en los extremos. */
+    private fun applyGain(rawLevel: Float): Float {
+        val span = GAIN_CEILING - GAIN_FLOOR
+        return ((rawLevel - GAIN_FLOOR) / span).coerceIn(0f, 1f)
     }
 
     private var mode = Mode.RECORDING
@@ -113,7 +126,11 @@ class VoiceWaveView(context: Context) : View(context) {
 
         when (mode) {
             Mode.RECORDING -> {
+                // Attack rápido / decay lento sobre el nivel crudo (0..1 de fondo de
+                // escala); la ganancia se aplica después para no alterar la dinámica
+                // del suavizado, solo el rango visible.
                 smoothedLevel = max(level, smoothedLevel * DECAY)
+                val gainedLevel = applyGain(smoothedLevel)
                 barPaint.color = p.accentBright
                 for (i in 0 until BAR_COUNT) {
                     // Las barras centrales responden más que las de los extremos,
@@ -121,7 +138,7 @@ class VoiceWaveView(context: Context) : View(context) {
                     val distFromCenter = abs(i - (BAR_COUNT - 1) / 2f) / (BAR_COUNT / 2f)
                     val falloff = 1f - distFromCenter * 0.5f
                     val jitter = sin(t * 9f + i * 1.7f) * 0.08f
-                    barLevels[i] = (smoothedLevel * falloff + jitter).coerceIn(0f, 1f)
+                    barLevels[i] = (gainedLevel * falloff + jitter).coerceIn(0f, 1f)
                 }
             }
             Mode.TRANSCRIBING -> {

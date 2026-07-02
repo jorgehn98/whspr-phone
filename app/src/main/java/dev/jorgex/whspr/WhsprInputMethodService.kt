@@ -52,10 +52,14 @@ class WhsprInputMethodService : InputMethodService() {
             )
         }
 
+        // Teclado y onda comparten la MISMA altura fija (KeyboardView.HEIGHT_DP):
+        // alternar entre ellos (applyState) solo cambia qué vista es VISIBLE/GONE,
+        // nunca el alto del contenedor del IME, para no dar un salto de layout a
+        // la app de debajo.
         val keyboard = KeyboardView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
+                dp(KeyboardView.HEIGHT_DP),
             )
             setLanguage(settings.keyboardLanguage)
             onText = { text -> currentInputConnection?.commitText(text, 1) }
@@ -69,7 +73,7 @@ class WhsprInputMethodService : InputMethodService() {
         val wave = VoiceWaveView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(WAVE_HEIGHT_DP),
+                dp(KeyboardView.HEIGHT_DP),
             )
             visibility = View.GONE
             setOnClickListener { toggleDictation() }
@@ -306,7 +310,4 @@ class WhsprInputMethodService : InputMethodService() {
         }
     }
 
-    private companion object {
-        const val WAVE_HEIGHT_DP = 96
-    }
 }

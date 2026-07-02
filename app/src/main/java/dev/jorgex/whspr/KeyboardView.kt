@@ -1,7 +1,9 @@
 package dev.jorgex.whspr
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.Typeface
+import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
@@ -88,17 +90,20 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun buildKeyView(key: Key): TextView {
         return TextView(context).apply {
-            text = displayLabel(key)
+            val iconRes = keyIconRes(key)
+            if (iconRes != null) {
+                setCompoundDrawablesWithIntrinsicBounds(0, iconRes, 0, 0)
+                compoundDrawablePadding = 0
+                compoundDrawableTintList = ColorStateList.valueOf(keyTextColor(key))
+            } else {
+                text = displayLabel(key)
+                isSingleLine = true
+            }
             gravity = Gravity.CENTER
             typeface = Typeface.MONOSPACE
-            textSize = 18f
+            textSize = if (key.type == KeyType.LAYER_PAGE) 14f else 18f
             setTextColor(keyTextColor(key))
-            background = surfaceRippleBackground(
-                palette,
-                context.dp(6).toFloat(),
-                context.dp(1),
-                palette.surfaceStroke,
-            )
+            background = keyBackground(key)
             contentDescription = contentDescriptionFor(key)
             val params = LayoutParams(0, LayoutParams.MATCH_PARENT, key.weight)
             params.setMargins(context.dp(2), context.dp(2), context.dp(2), context.dp(2))
@@ -114,6 +119,43 @@ class KeyboardView @JvmOverloads constructor(
                 attachRepeat(this)
             }
         }
+    }
+
+    /** Drawable de icono vectorial para teclas sin texto propio, o null si la tecla usa label. */
+    private fun keyIconRes(key: Key): Int? {
+        return when (key.type) {
+            KeyType.SHIFT -> if (shiftState == ShiftState.CAPS_LOCK) {
+                R.drawable.ic_key_shift_caps
+            } else {
+                R.drawable.ic_key_shift
+            }
+            KeyType.BACKSPACE -> R.drawable.ic_key_backspace
+            KeyType.GLOBE -> R.drawable.ic_key_globe
+            KeyType.MIC -> R.drawable.ic_key_mic
+            KeyType.ENTER -> R.drawable.ic_key_enter
+            else -> null
+        }
+    }
+
+    /**
+     * Fondo de la tecla SHIFT según estado: NONE = superficie normal; SHIFT
+     * transitorio = superficie resaltada (surfaceStroke, un paso más claro que
+     * surface); CAPS_LOCK = invertida (accentBright) para ser inconfundible.
+     */
+    private fun keyBackground(key: Key): Drawable {
+        val fillColor = when {
+            key.type != KeyType.SHIFT -> palette.surface
+            shiftState == ShiftState.CAPS_LOCK -> palette.accentBright
+            shiftState == ShiftState.SHIFT -> palette.surfaceStroke
+            else -> palette.surface
+        }
+        return surfaceRippleBackground(
+            palette,
+            context.dp(6).toFloat(),
+            context.dp(1),
+            palette.surfaceStroke,
+            fillColor = fillColor,
+        )
     }
 
     private fun handleTap(key: Key) {
@@ -179,7 +221,9 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun keyTextColor(key: Key): Int {
         return when {
-            key.type == KeyType.SHIFT && shiftState == ShiftState.CAPS_LOCK -> palette.accentBright
+            // CAPS_LOCK invierte la tecla (fondo accentBright): el icono debe ir
+            // oscuro (onAccent) para mantener contraste, no accentBright sobre sí mismo.
+            key.type == KeyType.SHIFT && shiftState == ShiftState.CAPS_LOCK -> palette.onAccent
             key.type == KeyType.SHIFT && shiftState == ShiftState.SHIFT -> palette.accentBright
             else -> palette.textPrimary
         }
@@ -288,6 +332,14 @@ class KeyboardView @JvmOverloads constructor(
 
     companion object {
         private const val ROW_HEIGHT_DP = 48
+
+        // Todas las capas (letras ES/EN, SYMBOLS_1, SYMBOLS_2) declaran exactamente
+        // 5 filas: dígitos, 2 filas de letras/símbolos, fila con shift/backspace,
+        // fila inferior. La altura del grid es determinista y no requiere medir tras
+        // layout: VoiceWaveView.heightDp la usa para no cambiar de alto al alternar.
+        private const val ROW_COUNT = 5
+        const val HEIGHT_DP = ROW_HEIGHT_DP * ROW_COUNT
+
         private const val DOUBLE_TAP_WINDOW_MS = 300L
         private const val REPEAT_INITIAL_DELAY_MS = 400L
         private const val REPEAT_INTERVAL_MS = 50L
