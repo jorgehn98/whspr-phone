@@ -144,6 +144,7 @@ class KeyboardView @JvmOverloads constructor(
     private fun consumeShiftIfNeeded() {
         if (shiftState == ShiftState.SHIFT) {
             shiftState = ShiftState.NONE
+            lastShiftTapAt = 0L
             render()
         }
     }

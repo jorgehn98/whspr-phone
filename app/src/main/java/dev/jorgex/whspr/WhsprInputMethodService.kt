@@ -164,12 +164,13 @@ class WhsprInputMethodService : InputMethodService() {
             return
         }
         dictationModelId = model.id
+        recorder.onLevel = { level -> voiceWaveView?.setLevel(level) }
         if (!recorder.start()) {
+            recorder.onLevel = null
             dictationModelId = null
             showMessage(R.string.error_recording_failed)
             return
         }
-        recorder.onLevel = { level -> voiceWaveView?.setLevel(level) }
         transitionTo(DictationState.RECORDING)
         applyState()
     }
