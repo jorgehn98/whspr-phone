@@ -2,11 +2,8 @@ package dev.jorgex.whspr
 
 import android.Manifest
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.content.res.ColorStateList
-import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -119,6 +116,13 @@ class MainActivity : Activity() {
             }
         }
 
+        val moreSettingsButton = Button(this).apply {
+            text = getString(R.string.more_settings)
+            setOnClickListener {
+                startActivity(Intent(this@MainActivity, SettingsActivity::class.java))
+            }
+        }
+
         permissionTrash = trashIcon { openAppSettings() }
         downloadTrash = trashIcon { deleteCurrentModel() }
         val permissionRow = buttonRow(permissionButton, permissionTrash)
@@ -139,6 +143,7 @@ class MainActivity : Activity() {
             addView(downloadRow)
             addView(enableButton)
             addView(switchButton)
+            addView(moreSettingsButton)
         }
 
         val palette = WhsprColors.forContext(this)
@@ -161,8 +166,8 @@ class MainActivity : Activity() {
 
     private fun decorateButton(button: Button) {
         button.isAllCaps = false
-        button.setTextColor(buttonTextColors())
-        button.background = buttonBackground()
+        button.setTextColor(defaultButtonTextColors())
+        button.background = defaultButtonBackground()
     }
 
     private fun styleButton(button: Button) {
@@ -205,21 +210,6 @@ class MainActivity : Activity() {
             addView(button)
             addView(trash)
         }
-    }
-
-    private fun buttonBackground(): Drawable {
-        val palette = WhsprColors.forContext(this)
-        return surfaceRippleBackground(palette, dp(14).toFloat(), dp(1), palette.surfaceStroke)
-    }
-
-    private fun buttonTextColors(): ColorStateList {
-        val palette = WhsprColors.forContext(this)
-        val states = arrayOf(
-            intArrayOf(android.R.attr.state_enabled),
-            intArrayOf(-android.R.attr.state_enabled),
-        )
-        val colors = intArrayOf(palette.textPrimary, palette.textMuted)
-        return ColorStateList(states, colors)
     }
 
     override fun onResume() {
@@ -327,16 +317,12 @@ class MainActivity : Activity() {
 
     private fun showLanguagePicker() {
         val items = Languages.all
-        val names = items.map { it.name }.toTypedArray()
+        val names = items.map { it.name }
         val current = items.indexOfFirst { it.code == settings.language }.coerceAtLeast(0)
-        AlertDialog.Builder(this)
-            .setTitle(R.string.language_title)
-            .setSingleChoiceItems(names, current) { dialog, which ->
-                settings.language = items[which].code
-                dialog.dismiss()
-                refreshStatus()
-            }
-            .show()
+        showSingleChoicePicker(R.string.language_title, names, current) { which ->
+            settings.language = items[which].code
+            refreshStatus()
+        }
     }
 
     private fun deleteCurrentModel() {

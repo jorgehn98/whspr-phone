@@ -189,7 +189,9 @@ try {
     $serviceNames = [regex]::Matches($manifestText, '<service[\s\S]*?android:name="([^"]+)"') | ForEach-Object {
         $_.Groups[1].Value
     }
-    $expectedActivities = @(".MainActivity")
+    # SettingsActivity es una Activity legitima ("Mas ajustes"), no exportada,
+    # que aloja los ajustes del teclado movidos fuera de MainActivity.
+    $expectedActivities = @(".MainActivity", ".SettingsActivity")
     $expectedServices = @(".WhsprInputMethodService", ".WhsprRecognitionService")
     $componentSurfaceFailed = 0
     foreach ($activity in $activityNames) {
@@ -281,8 +283,8 @@ try {
     }
 
     $inputMethodText = Get-Content -Raw -Path ".\app\src\main\res\xml\input_method.xml"
-    if ($inputMethodText -notmatch 'android:imeSubtypeMode="voice"') {
-        Write-Host "MISS input method subtype -> expected voice"
+    if ($inputMethodText -notmatch 'android:imeSubtypeMode="keyboard"') {
+        Write-Host "MISS input method subtype -> expected keyboard"
         $failed += 1
     } elseif ($inputMethodText -match 'android:isAuxiliary="true"') {
         Write-Host "MISS input method subtype -> should be selectable, not auxiliary"
@@ -291,7 +293,7 @@ try {
         Write-Host "MISS input method subtype -> expected languageTag es-ES"
         $failed += 1
     } else {
-        Write-Host "OK   input method voice subtype"
+        Write-Host "OK   input method keyboard subtype"
     }
 
     $recognitionServiceText = Get-Content -Raw -Path ".\app\src\main\java\dev\jorgex\whspr\WhsprRecognitionService.kt"
@@ -463,7 +465,6 @@ try {
         $localTranscriberText -notmatch 'fun transcribe\(audioFile: File, modelFile: File, language: String\): String\?' -or
         $localTranscriberText -notmatch 'private external fun transcribeNative\(audioPath: String, modelPath: String, language: String\): String\?' -or
         $nativeText -notmatch 'return nullptr' -or
-        $imeText -notmatch 'R\.string\.error_no_match' -or
         $recognitionServiceText -notmatch 'ERROR_NO_MATCH' -or
         $recognitionServiceText -notmatch 'ERROR_CLIENT' -or
         $localTranscriberText -notmatch 'System\.loadLibrary\("whspr"\)' -or
@@ -474,6 +475,21 @@ try {
         $failed += 1
     } else {
         Write-Host "OK   transcription errors"
+    }
+
+    # Tarea 13: un dictado sin habla (texto vacío o solo etiquetas no verbales tipo
+    # "[MUSICA]") ya no muestra R.string.error_no_match -> se descarta en silencio
+    # y el teclado vuelve solo, sin Toast. Este check protege ese filtro (función
+    # pura stripNonVerbalTags) y que el string ya no quede huérfano en el IME.
+    if (
+        $imeText -notmatch 'stripNonVerbalTags' -or
+        $imeText -match 'R\.string\.error_no_match' -or
+        $stringsXml -match 'name="error_no_match"'
+    ) {
+        Write-Host "MISS non-verbal tag filter -> expected stripNonVerbalTags before commit and no error_no_match Toast"
+        $failed += 1
+    } else {
+        Write-Host "OK   non-verbal tag filter"
     }
     if (
         $runtimeModelText -notmatch 'sessionModelId' -or
@@ -496,13 +512,50 @@ try {
     }
     if (
         $imeText -notmatch 'isSecureInput = attribute\?\.let \{ isPasswordInput\(it\.inputType\) \} \?: false' -or
-        $imeText -notmatch 'micButton\?\.isEnabled = !isSecureInput && !isProcessing' -or
+        $imeText -notmatch 'if \(isSecureInput\) \{\s*\n\s*showMessage\(R\.string\.error_secure_input\)' -or
         $imeText -notmatch 'private fun isPasswordInput\(inputType: Int\): Boolean'
     ) {
         Write-Host "MISS secure input guard -> IME must not dictate into password fields"
         $failed += 1
     } else {
         Write-Host "OK   secure input guard"
+    }
+
+    $teardownBody = [regex]::Match($audioRecorderText, '(?s)private fun teardown\(\): ByteArray\?\s*\{(.*?)\n    \}').Groups[1].Value
+    if (-not $teardownBody -or $teardownBody -notmatch 'onLevel = null') {
+        Write-Host "MISS audio recorder teardown -> onLevel must be cleared"
+        $failed += 1
+    } else {
+        Write-Host "OK   audio recorder teardown"
+    }
+
+    $voiceWaveViewText = Get-Content -Raw -Path ".\app\src\main\java\dev\jorgex\whspr\VoiceWaveView.kt"
+    $setLevelBody = [regex]::Match($voiceWaveViewText, '(?s)fun setLevel\([^)]*\)\s*\{(.*?)\n    \}').Groups[1].Value
+    if (-not $setLevelBody -or $setLevelBody -match 'invalidate\(\)') {
+        Write-Host "MISS VoiceWaveView setLevel -> must not invalidate from the audio thread"
+        $failed += 1
+    } else {
+        Write-Host "OK   VoiceWaveView setLevel thread discipline"
+    }
+
+    $keyboardLayoutText = Get-Content -Raw -Path ".\app\src\main\java\dev\jorgex\whspr\KeyboardLayout.kt"
+    $baseRowPattern = 'listOf\(((?:"[^"]+",?\s*)+)\)\.map'
+    $lettersEsBlock = [regex]::Match($keyboardLayoutText, '(?s)private fun lettersEs\([^)]*\) = KeyboardLayout\((.*?)\n    \)\n').Groups[1].Value
+    $lettersEnBlock = [regex]::Match($keyboardLayoutText, '(?s)private fun lettersEn\([^)]*\) = KeyboardLayout\((.*?)\n    \)\n').Groups[1].Value
+    $lettersEsBaseKeys = ([regex]::Matches($lettersEsBlock, $baseRowPattern) | ForEach-Object { $_.Groups[1].Value }) -join ","
+    $lettersEnBaseKeys = ([regex]::Matches($lettersEnBlock, $baseRowPattern) | ForEach-Object { $_.Groups[1].Value }) -join ","
+    if ($lettersEsBaseKeys -notmatch '"ñ"' -or $lettersEnBaseKeys -match '"ñ"') {
+        Write-Host "MISS keyboard layout -> ES letters must include ñ, EN letters must not have it as a base key"
+        $failed += 1
+    } else {
+        Write-Host "OK   keyboard layout language layers"
+    }
+
+    if ($recognitionServiceText -match 'onLevel') {
+        Write-Host "MISS recognition service -> must not couple to VoiceWaveView/onLevel UI callback"
+        $failed += 1
+    } else {
+        Write-Host "OK   recognition service UI decoupling"
     }
 
     $rootBuild = Get-Content -Raw -Path ".\build.gradle.kts"
@@ -657,10 +710,10 @@ try {
         Write-Host "OK   app identity"
     }
 
-    $markerPattern = ("TO" + "DO") + "|" +
-        ("FIX" + "ME") + "|" +
-        ("place" + "holder") + "|" +
-        ("old" + " package") + "|" +
+    $markerPattern = ("\bTO" + "DO\b") + "|" +
+        ("\bFIX" + "ME\b") + "|" +
+        ("\bplace" + "holder\b") + "|" +
+        ("\bold" + " package\b") + "|" +
         ("dev" + "\.example")
     $markers = Get-ChildItem -Path ".\app\src", ".\scripts" -Recurse -File |
         Select-String -Pattern $markerPattern

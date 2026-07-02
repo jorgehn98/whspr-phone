@@ -35,23 +35,63 @@ el contenido es claro sobre carbón; en claro, oscuro sobre blanco. Tokens (rol)
 
 ## Componentes
 
-### Burbuja del micro (`BubbleMicView`)
+### Teclado QWERTY (`KeyboardView`)
 
-Orbe de **ASCII art** dibujado con `Canvas`: una rejilla de caracteres
-monoespaciados (` .:-=+*#%@`) que ondula. El centro brilla con el acento y los
-bordes se atenúan. Estados (`Mode`):
+Grid de teclas renderizado dinámicamente desde `KeyboardLayout` (datos puros sin
+lógica). Características:
 
-- **IDLE**: ondulación lenta, brillo tenue. Ámbar `accent`.
-- **LISTENING**: ondas rápidas y amplias, núcleo brillante. `accentBright`.
-- **PROCESSING**: parpadeo/escaneo rápido. `accentDeep`.
-- **DISABLED**: gris `disabled`, estático (campos de contraseña).
+- **Layouts por idioma**: ES (con ñ, tildes completas) e EN (con ñ/tildes en long-press).
+- **Capas**: LETTERS (ES/EN), SYMBOLS_1 (operadores, puntuación), SYMBOLS_2 (símbolos especiales).
+- **Teclas especiales**: SHIFT (con doble tap para CAPS_LOCK), BACKSPACE (repetición
+  hold 400ms/50ms), SPACE, PERIOD (coma en long-press, lado configurable respecto al
+  espacio vía ajuste "Posición del punto"), ENTER, MIC (micrófono).
+- **Long-press**: variantes de tildes/acentos (é, ú, ñ, etc.) sobre caracteres.
+- **Estructura de cada tecla**: `FrameLayout` (fondo + click + caja táctil) con un
+  `TextView` o `ImageView` centrado dentro en ambos ejes — no `TextView` con compound
+  drawable (un compound drawable con label vacío no centra verticalmente).
+- **Tipografía**: monoespaciada, sin Compose, `TextView` para labels de texto.
+- **Colores**: superficie redondeada (`Surface` + `SurfaceStroke`), texto `TextPrimary`.
+- **Feedback de pulsación**: sin ripple expansivo. `StateListDrawable` propio
+  (`KeyboardView.keyPressBackground`) con dos shapes fijos — normal y `state_pressed`
+  con un tono más resaltado del mismo fondo — y `setExitFadeDuration(0)`: el cambio de
+  color es instantáneo al tocar y al soltar. `surfaceRippleBackground` (Ui.kt) se
+  mantiene solo para los botones de `MainActivity`.
+- **Iconos vectoriales**: SHIFT, BACKSPACE, ENTER, GLOBE y MIC se renderizan con
+  `vector` drawables en `res/drawable/` (`ic_key_shift`, `ic_key_shift_caps`,
+  `ic_key_backspace`, `ic_key_enter`, `ic_key_globe`, `ic_key_mic`), derivados de
+  Lucide (ver `THIRD_PARTY_NOTICES.md`), en un `ImageView` con `scaleType
+  CENTER_INSIDE` tintado en runtime vía `imageTintList` con el mismo tono que el
+  texto del resto de teclas — nunca a color, nunca dependientes del render de emoji
+  de la fuente del fabricante.
+- **Estados de SHIFT** (`KeyboardView.ShiftState`), pensados para ser
+  inconfundibles entre sí en dispositivo real:
+  - `NONE`: icono `ic_key_shift` tintado como el resto de teclas (`textPrimary`).
+  - `SHIFT` (transitorio, una letra): fondo de la tecla resaltado a
+    `surfaceStroke` (un paso más claro que `surface`) e icono a `accentBright`.
+  - `CAPS_LOCK` (doble tap dentro de 500ms, fijo): tecla invertida — fondo
+    `accentBright`, icono `ic_key_shift_caps` (con barra superior) tintado `onAccent`
+    para mantener contraste.
 
-Animación por tiempo (no reactiva al audio). El IME fija el estado con `setMode`.
-Sin texto "toca para dictar": la afordancia es obvia. La etiqueta inferior solo
-aparece para "Transcribiendo…" y campos no permitidos.
+### Visualizador de voz (`VoiceWaveView`)
 
-### Teclas (Espacio / Borrar / Intro / Siguiente)
+Barras verticales (19 unidades, finas) centradas y simétricas, dibujadas con `Canvas`.
+Estados (`Mode`):
 
-Superficie redondeada (`Surface` + borde `SurfaceStroke`), texto `TextPrimary`,
-ripple ámbar. Altura cómoda y separadas del borde inferior para no chocar con los
-botones del sistema (cambio de teclado / ocultar).
+- **RECORDING**: barras reactivas al nivel de audio (RMS 0..1 suavizado), color `accentBright`.
+  Las barras centrales responden más (simulan ecualizador). Jitter para animar.
+- **TRANSCRIBING**: barrido sinusoidal de barras, color `accentDeep`. Anima mientras procesa.
+
+Suavizado con attack rápido / decay lento sobre el nivel crudo. El nivel se
+actualiza desde el hilo de audio (`setLevel`, solo escritura de un `@Volatile
+Float`, nunca invalida la vista). Antes de dibujar, `onDraw` remapea (ganancia)
+el rango útil de voz normal (~0.02..0.4 del RMS normalizado) a 0..1 con
+saturación, para que la onda se note con voz normal en vez de quedarse casi
+plana; el suavizado attack/decay ocurre sobre el valor crudo, la ganancia se
+aplica después y es puramente de render. La vista se anima automáticamente con
+`postInvalidateOnAnimation`.
+
+**Altura constante del IME**: el contenedor del teclado y `VoiceWaveView` comparten
+la misma altura fija (`KeyboardView.HEIGHT_DP`, derivada del número de filas del
+grid). Alternar entre teclado y onda (`WhsprInputMethodService.applyState`) solo
+cambia qué vista es `VISIBLE`/`GONE`, nunca el alto del contenedor — evita que la
+app de debajo dé un salto de layout al empezar o terminar el dictado.
