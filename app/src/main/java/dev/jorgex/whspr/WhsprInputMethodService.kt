@@ -62,6 +62,7 @@ class WhsprInputMethodService : InputMethodService() {
                 dp(KeyboardView.HEIGHT_DP),
             )
             setLanguage(settings.keyboardLanguage)
+            setPeriodSide(settings.periodSide)
             onText = { text -> currentInputConnection?.commitText(text, 1) }
             onBackspace = { sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL) }
             onEnter = { pressEnter() }

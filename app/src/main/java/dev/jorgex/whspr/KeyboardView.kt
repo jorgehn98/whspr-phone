@@ -5,6 +5,7 @@ import android.content.res.ColorStateList
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.StateListDrawable
 import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
@@ -12,14 +13,17 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupWindow
 import android.widget.TextView
 
 /**
- * Vista del teclado QWERTY completo: grid de [TextView] generado dinámicamente a partir de
- * [KeyboardLayout]. Sin lógica de negocio propia: solo notifica al IME vía callbacks.
- * Ver AGENTS.md / DESIGN.md — sin Compose, sin AndroidX, [TextView] en vez de [android.widget.Button].
+ * Vista del teclado QWERTY completo: grid de teclas generado dinámicamente a partir de
+ * [KeyboardLayout]. Cada tecla es un [FrameLayout] (fondo/click) con un [TextView] o
+ * [ImageView] centrado dentro. Sin lógica de negocio propia: solo notifica al IME vía
+ * callbacks. Ver AGENTS.md / DESIGN.md — sin Compose, sin AndroidX, sin [android.widget.Button].
  */
 class KeyboardView @JvmOverloads constructor(
     context: Context,
@@ -38,6 +42,7 @@ class KeyboardView @JvmOverloads constructor(
     private var language = KeyboardLanguage.ES
     private var layer = KeyboardLayer.LETTERS
     private var shiftState = ShiftState.NONE
+    private var periodSide = PeriodSide.LEFT
 
     private val palette = WhsprColors.forContext(context)
     private val repeatHandler = Handler(Looper.getMainLooper())
@@ -63,6 +68,13 @@ class KeyboardView @JvmOverloads constructor(
         render()
     }
 
+    /** Cambia el lado del punto desde fuera (ajuste de MainActivity) y re-renderiza. */
+    fun setPeriodSide(newPeriodSide: PeriodSide) {
+        if (periodSide == newPeriodSide) return
+        periodSide = newPeriodSide
+        render()
+    }
+
     override fun onDetachedFromWindow() {
         cancelRepeat()
         dismissLongPressPopup()
@@ -71,7 +83,7 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun render() {
         removeAllViews()
-        val keyboardLayout = KeyboardLayouts.layoutFor(language, layer)
+        val keyboardLayout = KeyboardLayouts.layoutFor(language, layer, periodSide)
         for (row in keyboardLayout.rows) {
             addView(buildRow(row))
         }
@@ -88,24 +100,50 @@ class KeyboardView @JvmOverloads constructor(
         }
     }
 
-    private fun buildKeyView(key: Key): TextView {
-        return TextView(context).apply {
+    /**
+     * Contenedor de cada tecla: [FrameLayout] con fondo/click/caja táctil, que aloja
+     * o bien un [ImageView] centrado en ambos ejes (teclas con icono propio: SHIFT,
+     * BACKSPACE, GLOBE, MIC, ENTER) o un [TextView] centrado (teclas con label). Un
+     * compound drawable de TextView con label vacío no centra verticalmente el
+     * drawable (queda pegado arriba); el ImageView con CENTER_INSIDE sí centra en
+     * ambos ejes dentro de la misma caja táctil.
+     */
+    private fun buildKeyView(key: Key): View {
+        return FrameLayout(context).apply {
             val iconRes = keyIconRes(key)
             if (iconRes != null) {
-                setCompoundDrawablesWithIntrinsicBounds(0, iconRes, 0, 0)
-                compoundDrawablePadding = 0
-                compoundDrawableTintList = ColorStateList.valueOf(keyTextColor(key))
+                addView(
+                    ImageView(context).apply {
+                        setImageResource(iconRes)
+                        scaleType = ImageView.ScaleType.CENTER_INSIDE
+                        imageTintList = ColorStateList.valueOf(keyTextColor(key))
+                        layoutParams = FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.WRAP_CONTENT,
+                            FrameLayout.LayoutParams.WRAP_CONTENT,
+                            Gravity.CENTER,
+                        )
+                    },
+                )
             } else {
-                text = displayLabel(key)
-                isSingleLine = true
+                addView(
+                    TextView(context).apply {
+                        text = displayLabel(key)
+                        isSingleLine = true
+                        gravity = Gravity.CENTER
+                        typeface = Typeface.MONOSPACE
+                        textSize = if (key.type == KeyType.LAYER_PAGE) 14f else 18f
+                        setTextColor(keyTextColor(key))
+                        layoutParams = FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.MATCH_PARENT,
+                            FrameLayout.LayoutParams.MATCH_PARENT,
+                            Gravity.CENTER,
+                        )
+                    },
+                )
             }
-            gravity = Gravity.CENTER
-            typeface = Typeface.MONOSPACE
-            textSize = if (key.type == KeyType.LAYER_PAGE) 14f else 18f
-            setTextColor(keyTextColor(key))
             background = keyBackground(key)
             contentDescription = contentDescriptionFor(key)
-            val params = LayoutParams(0, LayoutParams.MATCH_PARENT, key.weight)
+            val params = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, key.weight)
             params.setMargins(context.dp(2), context.dp(2), context.dp(2), context.dp(2))
             layoutParams = params
             setOnClickListener { handleTap(key) }
@@ -138,9 +176,16 @@ class KeyboardView @JvmOverloads constructor(
     }
 
     /**
-     * Fondo de la tecla SHIFT según estado: NONE = superficie normal; SHIFT
-     * transitorio = superficie resaltada (surfaceStroke, un paso más claro que
-     * surface); CAPS_LOCK = invertida (accentBright) para ser inconfundible.
+     * Fondo de la tecla: superficie redondeada con borde, sin ripple expansivo.
+     * Estado normal = [fillColor] según SHIFT/CAPS_LOCK (ver más abajo); estado
+     * pulsado = un tono más resaltado del mismo [fillColor], con transición
+     * instantánea en ambas direcciones (sin fundido de entrada ni salida) para que
+     * el feedback táctil se sienta inmediato en vez de la onda expansiva del ripple
+     * por defecto de Android.
+     *
+     * SHIFT según estado: NONE = superficie normal; SHIFT transitorio = superficie
+     * resaltada (surfaceStroke, un paso más claro que surface); CAPS_LOCK = invertida
+     * (accentBright) para ser inconfundible.
      */
     private fun keyBackground(key: Key): Drawable {
         val fillColor = when {
@@ -149,13 +194,35 @@ class KeyboardView @JvmOverloads constructor(
             shiftState == ShiftState.SHIFT -> palette.surfaceStroke
             else -> palette.surface
         }
-        return surfaceRippleBackground(
-            palette,
-            context.dp(6).toFloat(),
-            context.dp(1),
-            palette.surfaceStroke,
-            fillColor = fillColor,
-        )
+        return keyPressBackground(fillColor)
+    }
+
+    /**
+     * [StateListDrawable] con dos shapes fijos (normal / pressed) y sin animación:
+     * al tocar cambia de color al instante, al soltar vuelve al instante. Sustituye
+     * al ripple compartido de [surfaceRippleBackground] solo para las teclas del
+     * teclado (MainActivity sigue usando el ripple normal).
+     */
+    private fun keyPressBackground(fillColor: Int): Drawable {
+        fun shape(color: Int) = GradientDrawable().apply {
+            cornerRadius = context.dp(6).toFloat()
+            setColor(color)
+            setStroke(context.dp(1), palette.surfaceStroke)
+        }
+        return StateListDrawable().apply {
+            setExitFadeDuration(0)
+            addState(intArrayOf(android.R.attr.state_pressed), shape(pressedColorFor(fillColor)))
+            addState(intArrayOf(), shape(fillColor))
+        }
+    }
+
+    /** Tono "un paso más resaltado" que [fillColor] para el estado pulsado de una tecla. */
+    private fun pressedColorFor(fillColor: Int): Int {
+        return when (fillColor) {
+            palette.accentBright -> palette.accentDeep
+            palette.surfaceStroke -> palette.accentMuted
+            else -> palette.surfaceStroke
+        }
     }
 
     private fun handleTap(key: Key) {
@@ -299,7 +366,7 @@ class KeyboardView @JvmOverloads constructor(
 
     // --- Repetición de BACKSPACE al mantener pulsado ---
 
-    private fun attachRepeat(keyView: TextView) {
+    private fun attachRepeat(keyView: View) {
         keyView.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
@@ -340,7 +407,7 @@ class KeyboardView @JvmOverloads constructor(
         private const val ROW_COUNT = 5
         const val HEIGHT_DP = ROW_HEIGHT_DP * ROW_COUNT
 
-        private const val DOUBLE_TAP_WINDOW_MS = 300L
+        private const val DOUBLE_TAP_WINDOW_MS = 500L
         private const val REPEAT_INITIAL_DELAY_MS = 400L
         private const val REPEAT_INTERVAL_MS = 50L
     }

@@ -3,6 +3,9 @@ package dev.jorgex.whspr
 /** Idioma del layout del teclado (letras). Distinto del idioma de dictado de Whisper. */
 enum class KeyboardLanguage { ES, EN }
 
+/** Lado del espacio donde se coloca la tecla de punto en la fila inferior. */
+enum class PeriodSide { LEFT, RIGHT }
+
 /** Capa visible del teclado: letras o una de las dos páginas de símbolos. */
 enum class KeyboardLayer { LETTERS, SYMBOLS_1, SYMBOLS_2 }
 
@@ -43,14 +46,14 @@ data class KeyboardLayout(val rows: List<List<Key>>)
  */
 object KeyboardLayouts {
 
-    fun layoutFor(language: KeyboardLanguage, layer: KeyboardLayer): KeyboardLayout {
+    fun layoutFor(language: KeyboardLanguage, layer: KeyboardLayer, periodSide: PeriodSide): KeyboardLayout {
         return when (layer) {
             KeyboardLayer.LETTERS -> when (language) {
-                KeyboardLanguage.ES -> lettersEs
-                KeyboardLanguage.EN -> lettersEn
+                KeyboardLanguage.ES -> lettersEs(periodSide)
+                KeyboardLanguage.EN -> lettersEn(periodSide)
             }
-            KeyboardLayer.SYMBOLS_1 -> symbols1
-            KeyboardLayer.SYMBOLS_2 -> symbols2
+            KeyboardLayer.SYMBOLS_1 -> symbols1(periodSide)
+            KeyboardLayer.SYMBOLS_2 -> symbols2(periodSide)
         }
     }
 
@@ -64,16 +67,22 @@ object KeyboardLayouts {
     // Las teclas con icono propio (SHIFT, BACKSPACE, GLOBE, MIC, ENTER) llevan
     // label vacío: KeyboardView decide el render (icono vectorial tintado) por
     // KeyType, no por texto. contentDescription cubre la accesibilidad.
-    private fun bottomRow(firstLabel: String, firstType: KeyType) = listOf(
-        Key(label = firstLabel, type = firstType, weight = 1.5f),
-        Key(label = "", type = KeyType.GLOBE, weight = 1.5f),
-        Key(label = " ", type = KeyType.SPACE, weight = 4f),
-        Key(label = ".", type = KeyType.PERIOD, weight = 1f, longPress = listOf(",")),
-        Key(label = "", type = KeyType.MIC, weight = 1.5f),
-        Key(label = "", type = KeyType.ENTER, weight = 1.5f),
-    )
+    // El punto (con long-press de coma en ambos lados) va a la izquierda o
+    // derecha del espacio según AppSettings.periodSide.
+    private fun bottomRow(firstLabel: String, firstType: KeyType, periodSide: PeriodSide): List<Key> {
+        val first = Key(label = firstLabel, type = firstType, weight = 1.5f)
+        val globe = Key(label = "", type = KeyType.GLOBE, weight = 1.5f)
+        val space = Key(label = " ", type = KeyType.SPACE, weight = 4f)
+        val period = Key(label = ".", type = KeyType.PERIOD, weight = 1f, longPress = listOf(","))
+        val mic = Key(label = "", type = KeyType.MIC, weight = 1.5f)
+        val enter = Key(label = "", type = KeyType.ENTER, weight = 1.5f)
+        return when (periodSide) {
+            PeriodSide.LEFT -> listOf(first, globe, period, space, mic, enter)
+            PeriodSide.RIGHT -> listOf(first, globe, space, period, mic, enter)
+        }
+    }
 
-    private val lettersEs = KeyboardLayout(
+    private fun lettersEs(periodSide: PeriodSide) = KeyboardLayout(
         rows = listOf(
             digitRow(),
             listOf("q", "w", "e", "r", "t", "y", "u", "i", "o", "p").map {
@@ -97,11 +106,11 @@ object KeyboardLayouts {
                     if (it == "c") charKey(it, listOf("ç")) else charKey(it)
                 } +
                 listOf(Key(label = "", type = KeyType.BACKSPACE, weight = 1.5f)),
-            bottomRow(firstLabel = "!#1", firstType = KeyType.LAYER_SYMBOLS),
+            bottomRow(firstLabel = "!#1", firstType = KeyType.LAYER_SYMBOLS, periodSide = periodSide),
         ),
     )
 
-    private val lettersEn = KeyboardLayout(
+    private fun lettersEn(periodSide: PeriodSide) = KeyboardLayout(
         rows = listOf(
             digitRow(),
             listOf("q", "w", "e", "r", "t", "y", "u", "i", "o", "p").map {
@@ -128,11 +137,11 @@ object KeyboardLayouts {
                     }
                 } +
                 listOf(Key(label = "", type = KeyType.BACKSPACE, weight = 1.5f)),
-            bottomRow(firstLabel = "!#1", firstType = KeyType.LAYER_SYMBOLS),
+            bottomRow(firstLabel = "!#1", firstType = KeyType.LAYER_SYMBOLS, periodSide = periodSide),
         ),
     )
 
-    private val symbols1 = KeyboardLayout(
+    private fun symbols1(periodSide: PeriodSide) = KeyboardLayout(
         rows = listOf(
             digitRow(),
             listOf("+", "×", "÷", "=", "/", "_", "<", ">", "[", "]").map { charKey(it) },
@@ -140,11 +149,11 @@ object KeyboardLayouts {
             listOf(Key(label = "1/2", type = KeyType.LAYER_PAGE, weight = 1.5f)) +
                 listOf("-", "'", "\"", ":", ";", ",", "?").map { charKey(it) } +
                 listOf(Key(label = "", type = KeyType.BACKSPACE, weight = 1.5f)),
-            bottomRow(firstLabel = "ABC", firstType = KeyType.LAYER_ABC),
+            bottomRow(firstLabel = "ABC", firstType = KeyType.LAYER_ABC, periodSide = periodSide),
         ),
     )
 
-    private val symbols2 = KeyboardLayout(
+    private fun symbols2(periodSide: PeriodSide) = KeyboardLayout(
         rows = listOf(
             digitRow(),
             listOf("`", "~", "\\", "|", "{", "}", "$", "£", "¥", "₩").map { charKey(it) },
@@ -153,7 +162,7 @@ object KeyboardLayouts {
             listOf(Key(label = "2/2", type = KeyType.LAYER_PAGE, weight = 1.5f)) +
                 listOf("☆", "▪", "¤", "《", "》", "¡", "¿").map { charKey(it) } +
                 listOf(Key(label = "", type = KeyType.BACKSPACE, weight = 1.5f)),
-            bottomRow(firstLabel = "ABC", firstType = KeyType.LAYER_ABC),
+            bottomRow(firstLabel = "ABC", firstType = KeyType.LAYER_ABC, periodSide = periodSide),
         ),
     )
 }

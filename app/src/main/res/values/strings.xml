@@ -15,6 +15,10 @@
     <string name="language_title">Elige idioma</string>
     <string name="language_spanish">Español</string>
     <string name="language_auto">Auto</string>
+    <string name="selected_period_side">Posición del punto: %1$s</string>
+    <string name="period_side_title">Posición del punto</string>
+    <string name="period_side_left">Izquierda</string>
+    <string name="period_side_right">Derecha</string>
     <string name="allow_microphone">Permitir micrófono</string>
     <string name="microphone_allowed">Micrófono permitido</string>
     <string name="download_model">Descargar modelo</string>

@@ -524,8 +524,8 @@ try {
 
     $keyboardLayoutText = Get-Content -Raw -Path ".\app\src\main\java\dev\jorgex\whspr\KeyboardLayout.kt"
     $baseRowPattern = 'listOf\(((?:"[^"]+",?\s*)+)\)\.map'
-    $lettersEsBlock = [regex]::Match($keyboardLayoutText, '(?s)private val lettersEs = KeyboardLayout\((.*?)\n    \)\n').Groups[1].Value
-    $lettersEnBlock = [regex]::Match($keyboardLayoutText, '(?s)private val lettersEn = KeyboardLayout\((.*?)\n    \)\n').Groups[1].Value
+    $lettersEsBlock = [regex]::Match($keyboardLayoutText, '(?s)private fun lettersEs\([^)]*\) = KeyboardLayout\((.*?)\n    \)\n').Groups[1].Value
+    $lettersEnBlock = [regex]::Match($keyboardLayoutText, '(?s)private fun lettersEn\([^)]*\) = KeyboardLayout\((.*?)\n    \)\n').Groups[1].Value
     $lettersEsBaseKeys = ([regex]::Matches($lettersEsBlock, $baseRowPattern) | ForEach-Object { $_.Groups[1].Value }) -join ","
     $lettersEnBaseKeys = ([regex]::Matches($lettersEnBlock, $baseRowPattern) | ForEach-Object { $_.Groups[1].Value }) -join ","
     if ($lettersEsBaseKeys -notmatch '"ñ"' -or $lettersEnBaseKeys -match '"ñ"') {

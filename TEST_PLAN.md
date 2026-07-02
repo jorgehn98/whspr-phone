@@ -106,7 +106,16 @@ Pruebas mínimas antes de dar la app por buena.
 8. Pulsar **Globo** y confirmar que cambia entre ES (ñ, tildes directas) e EN (ñ/tildes en long-press).
 8b. Confirmar que SHIFT, BACKSPACE, ENTER, GLOBE y MIC se ven como iconos vectoriales
     monocromos (mismo tono que el resto de teclas), sin emoji a color ni glifos de
-    fuente finos o con tono distinto.
+    fuente finos o con tono distinto, y que quedan centrados en ambos ejes dentro de
+    la tecla (ni desplazados hacia arriba ni hacia un lado).
+8c. Confirmar que, por defecto, el punto (`.`) está a la IZQUIERDA del espacio en la
+    fila inferior (`!#1 · globo · . · espacio · micro · Intro`).
+8d. En Whspr, abrir **Posición del punto** y cambiar a "Derecha". Volver al teclado
+    (sin necesidad de reiniciar la app) y confirmar que el punto pasa a la derecha del
+    espacio. Cambiar de nuevo a "Izquierda" y confirmar que vuelve. En ambos lados,
+    confirmar que el long-press del punto sigue ofreciendo la coma.
+8e. Confirmar que al tocar y soltar cualquier tecla, el resaltado de fondo cambia y
+    se apaga de forma instantánea (sin onda expansiva ni fundido perceptible).
 9. Pulsar **!#1** y confirmar que muestra SYMBOLS_1 (operadores, puntuación).
 10. Pulsar **1/2** para ir a SYMBOLS_2 (símbolos especiales); confirmar que el label
     cabe en una sola línea sin desbordar la tecla. Pulsar **2/2** para volver a SYMBOLS_1.
@@ -116,7 +125,7 @@ Pruebas mínimas antes de dar la app por buena.
 
 1. Pulsar **SHIFT** una vez. Confirmar que la siguiente letra se escribe en mayúsculas, el fondo de la tecla se resalta (un tono más claro) y el icono cambia a `accentBright`.
 2. Después de escribir una letra mayúscula, confirmar que SHIFT se apaga automáticamente (fondo e icono vuelven a normal).
-3. Pulsar **SHIFT** dos veces rápido (< 300ms) para activar CAPS_LOCK. Confirmar que la tecla se invierte (fondo claro sólido) con el icono de barra oscuro, y que se distingue claramente tanto del estado NONE como del SHIFT transitorio.
+3. Pulsar **SHIFT** dos veces con el dedo, con un intervalo natural (hasta ~450ms) para activar CAPS_LOCK. Confirmar que la ventana de doble tap (500ms) es suficiente para un doble tap real con el dedo y ya no lo interpreta como activar+desactivar. Confirmar que la tecla se invierte (fondo claro sólido) con el icono de barra oscuro, y que se distingue claramente tanto del estado NONE como del SHIFT transitorio.
 4. Escribir varias letras en mayúsculas.
 5. Pulsar **SHIFT** de nuevo para apagar CAPS_LOCK.
 6. Con SHIFT o CAPS activo, usar long-press para escribir tildes/acentos: deben salir en mayúsculas (É, Ñ, etc.).

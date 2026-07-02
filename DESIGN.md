@@ -43,23 +43,34 @@ lógica). Características:
 - **Layouts por idioma**: ES (con ñ, tildes completas) e EN (con ñ/tildes en long-press).
 - **Capas**: LETTERS (ES/EN), SYMBOLS_1 (operadores, puntuación), SYMBOLS_2 (símbolos especiales).
 - **Teclas especiales**: SHIFT (con doble tap para CAPS_LOCK), BACKSPACE (repetición
-  hold 400ms/50ms), SPACE, PERIOD (coma en long-press), ENTER, MIC (micrófono).
+  hold 400ms/50ms), SPACE, PERIOD (coma en long-press, lado configurable respecto al
+  espacio vía ajuste "Posición del punto"), ENTER, MIC (micrófono).
 - **Long-press**: variantes de tildes/acentos (é, ú, ñ, etc.) sobre caracteres.
-- **Tipografía**: monoespaciada, sin Compose, todo con `TextView` en `LinearLayout`.
+- **Estructura de cada tecla**: `FrameLayout` (fondo + click + caja táctil) con un
+  `TextView` o `ImageView` centrado dentro en ambos ejes — no `TextView` con compound
+  drawable (un compound drawable con label vacío no centra verticalmente).
+- **Tipografía**: monoespaciada, sin Compose, `TextView` para labels de texto.
 - **Colores**: superficie redondeada (`Surface` + `SurfaceStroke`), texto `TextPrimary`.
+- **Feedback de pulsación**: sin ripple expansivo. `StateListDrawable` propio
+  (`KeyboardView.keyPressBackground`) con dos shapes fijos — normal y `state_pressed`
+  con un tono más resaltado del mismo fondo — y `setExitFadeDuration(0)`: el cambio de
+  color es instantáneo al tocar y al soltar. `surfaceRippleBackground` (Ui.kt) se
+  mantiene solo para los botones de `MainActivity`.
 - **Iconos vectoriales**: SHIFT, BACKSPACE, ENTER, GLOBE y MIC se renderizan con
   `vector` drawables en `res/drawable/` (`ic_key_shift`, `ic_key_shift_caps`,
   `ic_key_backspace`, `ic_key_enter`, `ic_key_globe`, `ic_key_mic`), derivados de
-  Lucide (ver `THIRD_PARTY_NOTICES.md`). Se tintan en runtime vía
-  `compoundDrawableTintList` con el mismo tono que el texto del resto de teclas —
-  nunca a color, nunca dependientes del render de emoji de la fuente del fabricante.
+  Lucide (ver `THIRD_PARTY_NOTICES.md`), en un `ImageView` con `scaleType
+  CENTER_INSIDE` tintado en runtime vía `imageTintList` con el mismo tono que el
+  texto del resto de teclas — nunca a color, nunca dependientes del render de emoji
+  de la fuente del fabricante.
 - **Estados de SHIFT** (`KeyboardView.ShiftState`), pensados para ser
   inconfundibles entre sí en dispositivo real:
   - `NONE`: icono `ic_key_shift` tintado como el resto de teclas (`textPrimary`).
   - `SHIFT` (transitorio, una letra): fondo de la tecla resaltado a
     `surfaceStroke` (un paso más claro que `surface`) e icono a `accentBright`.
-  - `CAPS_LOCK` (doble tap, fijo): tecla invertida — fondo `accentBright`, icono
-    `ic_key_shift_caps` (con barra superior) tintado `onAccent` para mantener contraste.
+  - `CAPS_LOCK` (doble tap dentro de 500ms, fijo): tecla invertida — fondo
+    `accentBright`, icono `ic_key_shift_caps` (con barra superior) tintado `onAccent`
+    para mantener contraste.
 
 ### Visualizador de voz (`VoiceWaveView`)
 

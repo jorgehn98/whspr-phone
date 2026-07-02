@@ -28,6 +28,7 @@ class MainActivity : Activity() {
     private lateinit var status: TextView
     private lateinit var modelButton: Button
     private lateinit var languageButton: Button
+    private lateinit var periodSideButton: Button
     private lateinit var permissionButton: Button
     private lateinit var downloadButton: Button
     private lateinit var permissionTrash: ImageView
@@ -77,6 +78,10 @@ class MainActivity : Activity() {
 
         languageButton = Button(this).apply {
             setOnClickListener { showLanguagePicker() }
+        }
+
+        periodSideButton = Button(this).apply {
+            setOnClickListener { showPeriodSidePicker() }
         }
 
         permissionButton = Button(this).apply {
@@ -135,6 +140,7 @@ class MainActivity : Activity() {
             addView(status)
             addView(modelButton)
             addView(languageButton)
+            addView(periodSideButton)
             addView(permissionRow)
             addView(downloadRow)
             addView(enableButton)
@@ -255,6 +261,7 @@ class MainActivity : Activity() {
 
         modelButton.text = getString(R.string.selected_model, model.label, model.sizeLabel)
         languageButton.text = getString(R.string.selected_language, Languages.nameFor(settings.language))
+        periodSideButton.text = getString(R.string.selected_period_side, periodSideName(settings.periodSide))
         status.text = getString(
             R.string.status,
             if (micReady) getString(R.string.ready) else getString(R.string.missing),
@@ -333,6 +340,27 @@ class MainActivity : Activity() {
             .setTitle(R.string.language_title)
             .setSingleChoiceItems(names, current) { dialog, which ->
                 settings.language = items[which].code
+                dialog.dismiss()
+                refreshStatus()
+            }
+            .show()
+    }
+
+    private fun periodSideName(side: PeriodSide): String {
+        return when (side) {
+            PeriodSide.LEFT -> getString(R.string.period_side_left)
+            PeriodSide.RIGHT -> getString(R.string.period_side_right)
+        }
+    }
+
+    private fun showPeriodSidePicker() {
+        val items = PeriodSide.entries.toTypedArray()
+        val names = items.map { periodSideName(it) }.toTypedArray()
+        val current = items.indexOf(settings.periodSide).coerceAtLeast(0)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.period_side_title)
+            .setSingleChoiceItems(names, current) { dialog, which ->
+                settings.periodSide = items[which]
                 dialog.dismiss()
                 refreshStatus()
             }

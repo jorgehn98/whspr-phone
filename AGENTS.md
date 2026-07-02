@@ -32,10 +32,10 @@ No añadas dependencias sin aprobación explícita.
 ```
 app/src/main/java/dev/jorgex/whspr/   # Kotlin
   MainActivity.kt                      # UI mínima (sin Compose, Views a mano)
-  AppSettings.kt                       # modelo + idioma de layout + idioma de dictado persistidos
+  AppSettings.kt                       # modelo + idioma de layout + lado del punto + idioma de dictado persistidos
   ModelCatalog.kt / ModelStore.kt      # catálogo y descarga/validación SHA-256 del modelo
   KeyboardLayout.kt                    # modelo declarativo de teclado (layouts, capas, Key data)
-  KeyboardView.kt                      # grid de TextViews, shift/capas/long-press/repeat de borrado
+  KeyboardView.kt                      # grid de teclas (FrameLayout+TextView/ImageView), shift/capas/long-press/repeat de borrado
   VoiceWaveView.kt                     # visualizador de barras para RECORDING/TRANSCRIBING
   AudioRecorder.kt                     # captura WAV 16 kHz mono PCM16, callback onLevel (RMS)
   LocalTranscriber.kt                  # puente Kotlin -> JNI
