@@ -43,6 +43,12 @@ class KeyboardView @JvmOverloads constructor(
     private var lastShiftTapAt = 0L
     private var longPressPopup: PopupWindow? = null
 
+    // El OnTouchListener de BACKSPACE devuelve false para dejar pasar el click
+    // normal (tap simple = un borrado). Pero si la repetición por hold ya
+    // disparó al menos un borrado, el ACTION_UP final no debe generar además
+    // un click: repeatFired lo suprime y se resetea en el siguiente ACTION_DOWN.
+    private var repeatFired = false
+
     init {
         orientation = VERTICAL
         render()
@@ -117,7 +123,13 @@ class KeyboardView @JvmOverloads constructor(
                 consumeShiftIfNeeded()
             }
             KeyType.SHIFT -> handleShiftTap()
-            KeyType.BACKSPACE -> onBackspace()
+            KeyType.BACKSPACE -> {
+                if (repeatFired) {
+                    repeatFired = false
+                } else {
+                    onBackspace()
+                }
+            }
             KeyType.LAYER_SYMBOLS -> setLayer(KeyboardLayer.SYMBOLS_1)
             KeyType.LAYER_ABC -> setLayer(KeyboardLayer.LETTERS)
             KeyType.LAYER_PAGE -> togglePage()
@@ -235,7 +247,8 @@ class KeyboardView @JvmOverloads constructor(
         )
     }
 
-    private fun dismissLongPressPopup() {
+    /** Cierra el popup de long-press si está abierto. Llamable desde el IME (p. ej. onStartInput/onFinishInput). */
+    fun dismissLongPressPopup() {
         longPressPopup?.dismiss()
         longPressPopup = null
     }
@@ -245,7 +258,10 @@ class KeyboardView @JvmOverloads constructor(
     private fun attachRepeat(keyView: TextView) {
         keyView.setOnTouchListener { _, event ->
             when (event.action) {
-                MotionEvent.ACTION_DOWN -> scheduleRepeat()
+                MotionEvent.ACTION_DOWN -> {
+                    repeatFired = false
+                    scheduleRepeat()
+                }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> cancelRepeat()
             }
             false
@@ -256,6 +272,7 @@ class KeyboardView @JvmOverloads constructor(
         cancelRepeat()
         val runnable = object : Runnable {
             override fun run() {
+                repeatFired = true
                 onBackspace()
                 repeatHandler.postDelayed(this, REPEAT_INTERVAL_MS)
             }

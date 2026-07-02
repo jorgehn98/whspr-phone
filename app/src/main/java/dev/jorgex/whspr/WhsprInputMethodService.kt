@@ -101,6 +101,7 @@ class WhsprInputMethodService : InputMethodService() {
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
+        keyboardView?.dismissLongPressPopup()
         if (state != DictationState.KEYBOARD) recorder.discard()
         inputSession += 1
         transitionTo(DictationState.KEYBOARD)
@@ -111,6 +112,7 @@ class WhsprInputMethodService : InputMethodService() {
     }
 
     override fun onFinishInput() {
+        keyboardView?.dismissLongPressPopup()
         if (state != DictationState.KEYBOARD) recorder.discard()
         inputSession += 1
         isSecureInput = false
@@ -160,6 +162,7 @@ class WhsprInputMethodService : InputMethodService() {
             return
         }
         if (modelStore.resolveStatus(settings, model) { modelStore.isDownloaded(model) } != ModelStatus.Ready) {
+            showMessage(R.string.error_missing_model)
             openSettings()
             return
         }
@@ -190,6 +193,9 @@ class WhsprInputMethodService : InputMethodService() {
         }
 
         val session = inputSession
+        // El usuario cambió de modelo a mitad de grabación: se descarta el
+        // resultado en silencio (sin Toast) porque no fue un fallo, fue una
+        // decisión suya de cambiar de modelo antes de terminar.
         if (settings.modelId != sessionModelId) {
             dictationModelId = null
             runCatching { audioFile.delete() }
@@ -254,10 +260,15 @@ class WhsprInputMethodService : InputMethodService() {
     }
 
     private fun commitTranscription(text: String) {
-        currentInputConnection?.commitText(text, 1)
-        val beforeCursor = currentInputConnection?.getTextBeforeCursor(1, 0)
+        val connection = currentInputConnection
+        if (connection == null) {
+            showMessage(R.string.error_commit_lost)
+            return
+        }
+        connection.commitText(text, 1)
+        val beforeCursor = connection.getTextBeforeCursor(1, 0)
         if (beforeCursor != " ") {
-            currentInputConnection?.commitText(" ", 1)
+            connection.commitText(" ", 1)
         }
     }
 

@@ -77,6 +77,19 @@ class VoiceWaveView(context: Context) : View(context) {
         invalidate()
     }
 
+    // Cambiar la visibilidad PROPIA de esta vista (p. ej. GONE -> VISIBLE al
+    // entrar en RECORDING) no dispara onWindowVisibilityChanged: solo lo hace
+    // la visibilidad de la ventana contenedora. onVisibilityAggregated cubre
+    // ambos casos (propia y de ventana), así que es el único punto fiable
+    // para reenganchar la animación tras hacerse visible.
+    override fun onVisibilityAggregated(isVisible: Boolean) {
+        super.onVisibilityAggregated(isVisible)
+        if (isVisible) {
+            ensureAnimating()
+            invalidate()
+        }
+    }
+
     private fun ensureAnimating() {
         val shouldAnimate = isShown
         if (shouldAnimate && !animating) {

@@ -48,6 +48,10 @@ lógica). Características:
 - **Estado visual**: shift activo se marca con `accentBright`; CAPS_LOCK igual.
 - **Tipografía**: monoespaciada, sin Compose, todo con `TextView` en `LinearLayout`.
 - **Colores**: superficie redondeada (`Surface` + `SurfaceStroke`), texto `TextPrimary`.
+- **Glifos monocromos**: los emoji de teclas de UI (🌐 globo, 🎙 micro) llevan el
+  selector de presentación de texto U+FE0E para forzar render monocromo y mantener
+  la identidad del sistema. El render exacto puede variar según la fuente del
+  fabricante (algunas ignoran el selector y muestran el emoji a color).
 
 ### Visualizador de voz (`VoiceWaveView`)
 

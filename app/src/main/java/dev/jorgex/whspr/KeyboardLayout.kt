@@ -61,12 +61,18 @@ object KeyboardLayouts {
         "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
     ).map { charKey(it) }
 
+    // U+FE0E (selector de variación de texto) fuerza render monocromo en las
+    // teclas de UI donde la fuente lo soporte (DESIGN.md exige monocromo, sin
+    // color de acento). Solo en glifos de UI: los caracteres de contenido de
+    // SYMBOLS_2 se insertan tal cual y no llevan selector.
+    private const val TEXT_PRESENTATION = "︎"
+
     private fun bottomRow(firstLabel: String, firstType: KeyType) = listOf(
         Key(label = firstLabel, type = firstType, weight = 1.5f),
-        Key(label = "🌐", type = KeyType.GLOBE, weight = 1.5f),
+        Key(label = "🌐$TEXT_PRESENTATION", type = KeyType.GLOBE, weight = 1.5f),
         Key(label = " ", type = KeyType.SPACE, weight = 4f),
         Key(label = ".", type = KeyType.PERIOD, weight = 1f, longPress = listOf(",")),
-        Key(label = "🎙", type = KeyType.MIC, weight = 1.5f),
+        Key(label = "🎙$TEXT_PRESENTATION", type = KeyType.MIC, weight = 1.5f),
         Key(label = "⏎", type = KeyType.ENTER, weight = 1.5f),
     )
 

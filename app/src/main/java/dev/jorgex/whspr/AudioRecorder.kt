@@ -102,7 +102,7 @@ class AudioRecorder(private val context: Context) {
                                 recording = false
                             }
                         }
-                        onLevel?.invoke(rmsLevel(buffer, read))
+                        runCatching { onLevel?.invoke(rmsLevel(buffer, read)) }
                     } else {
                         recording = false
                     }

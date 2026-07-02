@@ -104,6 +104,7 @@ Pruebas mínimas antes de dar la app por buena.
 6. Escribir un emoji con otro teclado, volver a Whspr y confirmar que **Borrar** lo elimina completo.
 7. Pulsar **Espacio** dos veces y confirmar que no duplica espacios seguidos.
 8. Pulsar **Globo** (🌐) y confirmar que cambia entre ES (ñ, tildes directas) e EN (ñ/tildes en long-press).
+8b. Confirmar que las teclas globo (🌐) y micro (🎙) se ven monocromas (sin color de emoji), acorde al resto del teclado.
 9. Pulsar **!#1** y confirmar que muestra SYMBOLS_1 (operadores, puntuación).
 10. Pulsar **[1/2]** para ir a SYMBOLS_2 (símbolos especiales). Pulsar **[2/2]** para volver a SYMBOLS_1.
 11. Pulsar **ABC** para volver a LETTERS.
@@ -132,6 +133,7 @@ Pruebas mínimas antes de dar la app por buena.
 1. Abrir un campo de texto y cambiar a Whspr.
 2. Pulsar el micrófono (🎙). Confirmar que el teclado desaparece y muestra barras visualizadoras.
 3. Hablar una frase corta. Confirmar que las barras reaccionan al nivel de audio (accentBright).
+3b. Confirmar que la onda anima desde la PRIMERA grabación tras abrir el teclado (sin necesidad de una grabación previa), y también tras rotar el dispositivo a mitad de grabación.
 4. Pulsar de nuevo (en la onda o el micrófono) para parar la grabación.
 5. Confirmar que pasa a estado TRANSCRIBING (barras con barrido sinusoidal, accentDeep).
 6. Esperar a que transcribe. Confirmar que el teclado reaparece y el texto se inserta en el campo.
