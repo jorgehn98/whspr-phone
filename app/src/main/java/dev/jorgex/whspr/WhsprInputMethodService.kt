@@ -63,6 +63,7 @@ class WhsprInputMethodService : InputMethodService() {
             )
             setLanguage(settings.keyboardLanguage)
             setPeriodSide(settings.periodSide)
+            setShowNumberRow(settings.showNumberRow)
             onText = { text -> currentInputConnection?.commitText(text, 1) }
             onBackspace = { sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL) }
             onEnter = { pressEnter() }
@@ -113,6 +114,7 @@ class WhsprInputMethodService : InputMethodService() {
         isSecureInput = attribute?.let { isPasswordInput(it.inputType) } ?: false
         editorAction = attribute?.imeOptions?.and(EditorInfo.IME_MASK_ACTION) ?: EditorInfo.IME_ACTION_NONE
         noEnterAction = (attribute?.imeOptions?.and(EditorInfo.IME_FLAG_NO_ENTER_ACTION) ?: 0) != 0
+        refreshKeyboardSettings()
         applyState()
     }
 
@@ -236,13 +238,17 @@ class WhsprInputMethodService : InputMethodService() {
                 transitionTo(DictationState.KEYBOARD)
                 applyState()
                 if (settings.modelId != sessionModelId) return@post
-                val finalText = text
+                val finalText = text?.let(::stripNonVerbalTags)
                 if (!modelOk) {
                     showMessage(R.string.error_invalid_model)
-                } else if (finalText == null) {
+                } else if (text == null) {
                     showMessage(R.string.error_transcriber_not_ready)
-                } else if (finalText.isBlank()) {
-                    showMessage(R.string.error_no_match)
+                } else if (finalText.isNullOrBlank()) {
+                    // Dictado sin habla: Whisper puede devolver solo una etiqueta no
+                    // verbal ("[MÚSICA]") o directamente texto en blanco. En ambos
+                    // casos no hay nada que pegar; es el resultado esperado, no un
+                    // error, así que no se muestra Toast (tarea 13).
+                    Unit
                 } else {
                     commitTranscription(finalText)
                 }
@@ -258,6 +264,20 @@ class WhsprInputMethodService : InputMethodService() {
         val next = if (settings.keyboardLanguage == KeyboardLanguage.ES) KeyboardLanguage.EN else KeyboardLanguage.ES
         settings.keyboardLanguage = next
         keyboardView?.setLanguage(next)
+    }
+
+    /**
+     * Relee language/periodSide/showNumberRow de [settings] en cada onStartInput: si el
+     * proceso del IME sigue vivo tras cambiar un ajuste en la app, el teclado debe
+     * reflejarlo sin esperar a rotar (tarea 13). Cada setter de KeyboardView ya compara
+     * contra su valor actual y solo re-renderiza si cambió, así que llamarlos siempre
+     * aquí es barato y no tiene efectos secundarios cuando nada cambió.
+     */
+    private fun refreshKeyboardSettings() {
+        val keyboard = keyboardView ?: return
+        keyboard.setLanguage(settings.keyboardLanguage)
+        keyboard.setPeriodSide(settings.periodSide)
+        keyboard.setShowNumberRow(settings.showNumberRow)
     }
 
     private fun showMessage(messageRes: Int) {
@@ -311,4 +331,40 @@ class WhsprInputMethodService : InputMethodService() {
         }
     }
 
+}
+
+/**
+ * Elimina de [text] las etiquetas no verbales que Whisper emite cuando el audio no
+ * tiene habla (p. ej. "[MÚSICA]", "(music)", "♪"). Lista blanca cerrada: solo se
+ * elimina un token entre corchetes/paréntesis si su contenido, en minúsculas y sin
+ * acentos, coincide exactamente con una etiqueta conocida; cualquier otro corchete o
+ * paréntesis (con texto dictado real dentro) se deja intacto. Tras filtrar, normaliza
+ * espacios repetidos y hace trim (tarea 13).
+ */
+private val NON_VERBAL_TAG_PATTERN = Regex("[\\[(][^\\[\\]()]+[\\])]")
+private val NON_VERBAL_LABELS = setOf(
+    "musica", "music",
+    "aplausos", "applause",
+    "risas", "laughter",
+    "ruido", "noise",
+    "silencio", "silence",
+    "sonido", "sound",
+    "suspiros", "sighs",
+)
+private val NON_VERBAL_SYMBOLS = Regex("[♪♫]")
+
+private fun stripNonVerbalTags(text: String): String {
+    val withoutTags = NON_VERBAL_TAG_PATTERN.replace(text) { match ->
+        val inner = match.value.substring(1, match.value.length - 1)
+        if (normalizeTagLabel(inner) in NON_VERBAL_LABELS) "" else match.value
+    }
+    return withoutTags.replace(NON_VERBAL_SYMBOLS, "")
+        .replace(Regex("\\s+"), " ")
+        .trim()
+}
+
+private fun normalizeTagLabel(label: String): String {
+    val stripped = java.text.Normalizer.normalize(label.trim().lowercase(), java.text.Normalizer.Form.NFD)
+        .replace(Regex("\\p{Mn}+"), "")
+    return stripped
 }

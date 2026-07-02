@@ -116,6 +116,19 @@ Pruebas mínimas antes de dar la app por buena.
     confirmar que el long-press del punto sigue ofreciendo la coma.
 8e. Confirmar que al tocar y soltar cualquier tecla, el resaltado de fondo cambia y
     se apaga de forma instantánea (sin onda expansiva ni fundido perceptible).
+8f. Confirmar que, por defecto, LETTERS muestra la fila de números (1234567890) encima
+    de las letras, y que SYMBOLS_1/SYMBOLS_2 siempre la muestran también.
+8g. En Whspr, abrir **Fila de números** y elegir "Ocultar". Volver al teclado (sin
+    reiniciar la app) y confirmar que LETTERS pasa a 4 filas (sin números), con teclas
+    proporcionalmente más altas, y que el ALTO TOTAL del teclado no cambia (compararlo
+    con el alto que tenía antes, p. ej. mirando si la posición del espacio/enter en la
+    fila inferior se mantiene). Confirmar que SYMBOLS_1/SYMBOLS_2 siguen mostrando su
+    fila de números aunque el ajuste esté en "Ocultar". Volver a "Mostrar" y confirmar
+    que LETTERS recupera las 5 filas con el mismo alto total.
+8h. Con el teclado abierto en un campo de texto, ir a Whspr y cambiar cualquier ajuste
+    del teclado (idioma, posición del punto o fila de números). Volver al campo de texto
+    SIN rotar ni reiniciar la app y confirmar que el teclado refleja el cambio en cuanto
+    se vuelve a enfocar el campo.
 9. Pulsar **!#1** y confirmar que muestra SYMBOLS_1 (operadores, puntuación).
 10. Pulsar **1/2** para ir a SYMBOLS_2 (símbolos especiales); confirmar que el label
     cabe en una sola línea sin desbordar la tecla. Pulsar **2/2** para volver a SYMBOLS_1.
@@ -152,6 +165,9 @@ Pruebas mínimas antes de dar la app por buena.
 7. Confirmar que el dictado deja separación final sin duplicar espacios.
 8. En un campo de búsqueda o chat, pulsar **Intro** desde el teclado tras escribir/dictar, y confirmar que ejecuta la acción del campo si existe.
 9. En un campo multilínea, pulsar **Intro** y confirmar que inserta salto de línea.
+10. Dictar en silencio (sin hablar, unos segundos de grabación) y parar. Confirmar que no
+    se pega ningún texto ni etiqueta tipo "[MÚSICA]"/"(music)"/"♪" en el campo, no aparece
+    ningún Toast de error, y el teclado vuelve solo al estado normal.
 
 ## Dictado de voz Android
 

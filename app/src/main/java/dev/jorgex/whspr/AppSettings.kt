@@ -21,6 +21,10 @@ class AppSettings(context: Context) {
         get() = cleanPeriodSide(prefs.getString(KEY_PERIOD_SIDE, null))
         set(value) = prefs.edit().putString(KEY_PERIOD_SIDE, value.name).apply()
 
+    var showNumberRow: Boolean
+        get() = prefs.getBoolean(KEY_SHOW_NUMBER_ROW, true)
+        set(value) = prefs.edit().putBoolean(KEY_SHOW_NUMBER_ROW, value).apply()
+
     var pendingModelId: String?
         get() = prefs.getString(KEY_PENDING_MODEL_ID, null)
         set(value) = prefs.edit().putString(KEY_PENDING_MODEL_ID, value).apply()
@@ -44,6 +48,7 @@ class AppSettings(context: Context) {
         private const val KEY_LANGUAGE = "language"
         private const val KEY_KEYBOARD_LANGUAGE = "keyboard_language"
         private const val KEY_PERIOD_SIDE = "period_side"
+        private const val KEY_SHOW_NUMBER_ROW = "show_number_row"
         private const val KEY_PENDING_MODEL_ID = "pending_model_id"
         private const val KEY_PENDING_DOWNLOAD_ID = "pending_download_id"
     }

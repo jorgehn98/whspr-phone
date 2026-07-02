@@ -463,7 +463,6 @@ try {
         $localTranscriberText -notmatch 'fun transcribe\(audioFile: File, modelFile: File, language: String\): String\?' -or
         $localTranscriberText -notmatch 'private external fun transcribeNative\(audioPath: String, modelPath: String, language: String\): String\?' -or
         $nativeText -notmatch 'return nullptr' -or
-        $imeText -notmatch 'R\.string\.error_no_match' -or
         $recognitionServiceText -notmatch 'ERROR_NO_MATCH' -or
         $recognitionServiceText -notmatch 'ERROR_CLIENT' -or
         $localTranscriberText -notmatch 'System\.loadLibrary\("whspr"\)' -or
@@ -474,6 +473,21 @@ try {
         $failed += 1
     } else {
         Write-Host "OK   transcription errors"
+    }
+
+    # Tarea 13: un dictado sin habla (texto vacío o solo etiquetas no verbales tipo
+    # "[MUSICA]") ya no muestra R.string.error_no_match -> se descarta en silencio
+    # y el teclado vuelve solo, sin Toast. Este check protege ese filtro (función
+    # pura stripNonVerbalTags) y que el string ya no quede huérfano en el IME.
+    if (
+        $imeText -notmatch 'stripNonVerbalTags' -or
+        $imeText -match 'R\.string\.error_no_match' -or
+        $stringsXml -match 'name="error_no_match"'
+    ) {
+        Write-Host "MISS non-verbal tag filter -> expected stripNonVerbalTags before commit and no error_no_match Toast"
+        $failed += 1
+    } else {
+        Write-Host "OK   non-verbal tag filter"
     }
     if (
         $runtimeModelText -notmatch 'sessionModelId' -or

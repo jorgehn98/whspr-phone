@@ -43,6 +43,7 @@ class KeyboardView @JvmOverloads constructor(
     private var layer = KeyboardLayer.LETTERS
     private var shiftState = ShiftState.NONE
     private var periodSide = PeriodSide.LEFT
+    private var showNumberRow = true
 
     private val palette = WhsprColors.forContext(context)
     private val repeatHandler = Handler(Looper.getMainLooper())
@@ -75,6 +76,13 @@ class KeyboardView @JvmOverloads constructor(
         render()
     }
 
+    /** Muestra/oculta la fila numérica en LETRAS desde fuera (ajuste de MainActivity) y re-renderiza. */
+    fun setShowNumberRow(newShowNumberRow: Boolean) {
+        if (showNumberRow == newShowNumberRow) return
+        showNumberRow = newShowNumberRow
+        render()
+    }
+
     override fun onDetachedFromWindow() {
         cancelRepeat()
         dismissLongPressPopup()
@@ -83,16 +91,20 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun render() {
         removeAllViews()
-        val keyboardLayout = KeyboardLayouts.layoutFor(language, layer, periodSide)
+        val keyboardLayout = KeyboardLayouts.layoutFor(language, layer, periodSide, showNumberRow)
+        // La altura total del grid es siempre HEIGHT_DP (constante), la reparten
+        // las filas que haya: con la fila numérica oculta en LETRAS quedan 4 filas
+        // en vez de 5 y cada una crece para llenar el mismo alto total (tarea 13).
+        val rowHeightDp = HEIGHT_DP / keyboardLayout.rows.size
         for (row in keyboardLayout.rows) {
-            addView(buildRow(row))
+            addView(buildRow(row, rowHeightDp))
         }
     }
 
-    private fun buildRow(row: List<Key>): LinearLayout {
+    private fun buildRow(row: List<Key>, rowHeightDp: Int): LinearLayout {
         return LinearLayout(context).apply {
             orientation = HORIZONTAL
-            val params = LayoutParams(LayoutParams.MATCH_PARENT, context.dp(ROW_HEIGHT_DP))
+            val params = LayoutParams(LayoutParams.MATCH_PARENT, context.dp(rowHeightDp))
             layoutParams = params
             for (key in row) {
                 addView(buildKeyView(key))
@@ -398,12 +410,14 @@ class KeyboardView @JvmOverloads constructor(
     }
 
     companion object {
+        // SYMBOLS_1/SYMBOLS_2 declaran siempre 5 filas (dígitos, 2 filas de símbolos,
+        // fila con page/backspace, fila inferior); es la referencia de altura total.
+        // LETRAS declara 5 filas por defecto o 4 si showNumberRow está desactivado
+        // (tarea 13): en ese caso cada fila crece para mantener el mismo alto total
+        // HEIGHT_DP (ver render()), que es siempre constante y determinista, sin
+        // requerir medir tras layout: VoiceWaveView.heightDp la usa para no cambiar
+        // de alto al alternar entre teclado y onda.
         private const val ROW_HEIGHT_DP = 48
-
-        // Todas las capas (letras ES/EN, SYMBOLS_1, SYMBOLS_2) declaran exactamente
-        // 5 filas: dígitos, 2 filas de letras/símbolos, fila con shift/backspace,
-        // fila inferior. La altura del grid es determinista y no requiere medir tras
-        // layout: VoiceWaveView.heightDp la usa para no cambiar de alto al alternar.
         private const val ROW_COUNT = 5
         const val HEIGHT_DP = ROW_HEIGHT_DP * ROW_COUNT
 

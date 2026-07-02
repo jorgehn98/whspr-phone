@@ -46,12 +46,19 @@ data class KeyboardLayout(val rows: List<List<Key>>)
  */
 object KeyboardLayouts {
 
-    fun layoutFor(language: KeyboardLanguage, layer: KeyboardLayer, periodSide: PeriodSide): KeyboardLayout {
+    fun layoutFor(
+        language: KeyboardLanguage,
+        layer: KeyboardLayer,
+        periodSide: PeriodSide,
+        showNumberRow: Boolean,
+    ): KeyboardLayout {
         return when (layer) {
             KeyboardLayer.LETTERS -> when (language) {
-                KeyboardLanguage.ES -> lettersEs(periodSide)
-                KeyboardLanguage.EN -> lettersEn(periodSide)
+                KeyboardLanguage.ES -> lettersEs(periodSide, showNumberRow)
+                KeyboardLanguage.EN -> lettersEn(periodSide, showNumberRow)
             }
+            // Los símbolos siempre incluyen la fila numérica, sea cual sea el
+            // ajuste: showNumberRow solo afecta a las letras (ver tarea 13).
             KeyboardLayer.SYMBOLS_1 -> symbols1(periodSide)
             KeyboardLayer.SYMBOLS_2 -> symbols2(periodSide)
         }
@@ -82,9 +89,9 @@ object KeyboardLayouts {
         }
     }
 
-    private fun lettersEs(periodSide: PeriodSide) = KeyboardLayout(
-        rows = listOf(
-            digitRow(),
+    private fun lettersEs(periodSide: PeriodSide, showNumberRow: Boolean) = KeyboardLayout(
+        rows = listOfNotNull(
+            digitRow().takeIf { showNumberRow },
             listOf("q", "w", "e", "r", "t", "y", "u", "i", "o", "p").map {
                 when (it) {
                     "e" -> charKey(it, listOf("é", "è", "ë", "ê"))
@@ -110,9 +117,9 @@ object KeyboardLayouts {
         ),
     )
 
-    private fun lettersEn(periodSide: PeriodSide) = KeyboardLayout(
-        rows = listOf(
-            digitRow(),
+    private fun lettersEn(periodSide: PeriodSide, showNumberRow: Boolean) = KeyboardLayout(
+        rows = listOfNotNull(
+            digitRow().takeIf { showNumberRow },
             listOf("q", "w", "e", "r", "t", "y", "u", "i", "o", "p").map {
                 when (it) {
                     "e" -> charKey(it, listOf("é", "è", "ë", "ê"))

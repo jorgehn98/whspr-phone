@@ -19,6 +19,10 @@
     <string name="period_side_title">Posición del punto</string>
     <string name="period_side_left">Izquierda</string>
     <string name="period_side_right">Derecha</string>
+    <string name="selected_show_number_row">Fila de números: %1$s</string>
+    <string name="show_number_row_title">Fila de números</string>
+    <string name="show_number_row_on">Mostrar</string>
+    <string name="show_number_row_off">Ocultar</string>
     <string name="allow_microphone">Permitir micrófono</string>
     <string name="microphone_allowed">Micrófono permitido</string>
     <string name="download_model">Descargar modelo</string>
@@ -31,7 +35,6 @@
     <string name="error_missing_model">Abre Whspr y descarga el modelo.</string>
     <string name="error_recording_failed">No he podido grabar audio.</string>
     <string name="error_no_audio">No se ha grabado audio.</string>
-    <string name="error_no_match">No he entendido nada.</string>
     <string name="error_invalid_model">El modelo descargado no es válido. Descárgalo otra vez.</string>
     <string name="error_download_start_failed">No he podido empezar la descarga.</string>
     <string name="error_transcriber_not_ready">No he podido transcribir el audio.</string>

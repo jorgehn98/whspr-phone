@@ -29,6 +29,7 @@ class MainActivity : Activity() {
     private lateinit var modelButton: Button
     private lateinit var languageButton: Button
     private lateinit var periodSideButton: Button
+    private lateinit var showNumberRowButton: Button
     private lateinit var permissionButton: Button
     private lateinit var downloadButton: Button
     private lateinit var permissionTrash: ImageView
@@ -82,6 +83,10 @@ class MainActivity : Activity() {
 
         periodSideButton = Button(this).apply {
             setOnClickListener { showPeriodSidePicker() }
+        }
+
+        showNumberRowButton = Button(this).apply {
+            setOnClickListener { showNumberRowPicker() }
         }
 
         permissionButton = Button(this).apply {
@@ -141,6 +146,7 @@ class MainActivity : Activity() {
             addView(modelButton)
             addView(languageButton)
             addView(periodSideButton)
+            addView(showNumberRowButton)
             addView(permissionRow)
             addView(downloadRow)
             addView(enableButton)
@@ -262,6 +268,7 @@ class MainActivity : Activity() {
         modelButton.text = getString(R.string.selected_model, model.label, model.sizeLabel)
         languageButton.text = getString(R.string.selected_language, Languages.nameFor(settings.language))
         periodSideButton.text = getString(R.string.selected_period_side, periodSideName(settings.periodSide))
+        showNumberRowButton.text = getString(R.string.selected_show_number_row, showNumberRowName(settings.showNumberRow))
         status.text = getString(
             R.string.status,
             if (micReady) getString(R.string.ready) else getString(R.string.missing),
@@ -361,6 +368,24 @@ class MainActivity : Activity() {
             .setTitle(R.string.period_side_title)
             .setSingleChoiceItems(names, current) { dialog, which ->
                 settings.periodSide = items[which]
+                dialog.dismiss()
+                refreshStatus()
+            }
+            .show()
+    }
+
+    private fun showNumberRowName(show: Boolean): String {
+        return if (show) getString(R.string.show_number_row_on) else getString(R.string.show_number_row_off)
+    }
+
+    private fun showNumberRowPicker() {
+        val items = booleanArrayOf(true, false)
+        val names = items.map { showNumberRowName(it) }.toTypedArray()
+        val current = items.indexOf(settings.showNumberRow).coerceAtLeast(0)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.show_number_row_title)
+            .setSingleChoiceItems(names, current) { dialog, which ->
+                settings.showNumberRow = items[which]
                 dialog.dismiss()
                 refreshStatus()
             }

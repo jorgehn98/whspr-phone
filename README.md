@@ -20,7 +20,9 @@ MVP inicial:
 - Permiso de micrófono.
 - Descarga de modelo local.
 - Validación SHA-256 del modelo antes de transcribir.
-- Ajustes mínimos: modelo, idioma y posición del punto (izquierda/derecha del espacio).
+- Ajustes mínimos: modelo, idioma, posición del punto (izquierda/derecha del espacio) y fila de números (mostrar/ocultar en letras).
+- Los ajustes del teclado se releen al volver a un campo de texto: se aplican sin reiniciar la app.
+- Filtro de etiquetas no verbales de Whisper (p. ej. "[MÚSICA]") en dictados sin habla: no se pega nada.
 - Botón de micrófono en el teclado.
 - Captura de audio a WAV 16 kHz desde el IME.
 - Motor local con `whisper.cpp` vía JNI/CMake.
