@@ -38,4 +38,9 @@
     <string name="key_space">Espacio</string>
     <string name="key_delete">Borrar</string>
     <string name="key_enter">Intro</string>
+    <string name="key_shift_description">Mayúsculas</string>
+    <string name="key_backspace_description">Borrar</string>
+    <string name="key_globe_description">Cambiar idioma del teclado</string>
+    <string name="key_mic_description">Dictar por voz</string>
+    <string name="key_enter_description">Intro</string>
 </resources>
