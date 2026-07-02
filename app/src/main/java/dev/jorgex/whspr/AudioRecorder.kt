@@ -24,6 +24,14 @@ class AudioRecorder(private val context: Context) {
     private val pcmLock = Any()
     private var pcm = ByteArrayOutputStream()
 
+    /**
+     * Nivel de voz normalizado (0f..1f) para animar la vista de grabación.
+     * Se invoca EN EL HILO DE AUDIO (whspr-audio): el consumidor decide si
+     * necesita saltar a otro hilo (p. ej. con Handler/post).
+     */
+    @Volatile
+    var onLevel: ((Float) -> Unit)? = null
+
     fun hasPermission(): Boolean {
         return context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
     }
@@ -94,6 +102,7 @@ class AudioRecorder(private val context: Context) {
                                 recording = false
                             }
                         }
+                        onLevel?.invoke(rmsLevel(buffer, read))
                     } else {
                         recording = false
                     }
@@ -132,6 +141,7 @@ class AudioRecorder(private val context: Context) {
     private fun teardown(): ByteArray? {
         if (!recording && audioRecord == null && worker == null) return null
         recording = false
+        onLevel = null
         audioRecord?.let { recorder ->
             runCatching {
                 if (recorder.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
@@ -157,6 +167,25 @@ class AudioRecorder(private val context: Context) {
             pcm = ByteArrayOutputStream()
             bytes
         }
+    }
+
+    /** RMS normalizado (0f..1f) de un buffer PCM16 mono little-endian; curva sqrt para sensibilidad visual. */
+    private fun rmsLevel(buffer: ByteArray, length: Int): Float {
+        val sampleCount = length / 2
+        if (sampleCount <= 0) return 0f
+
+        var sumSquares = 0L
+        for (i in 0 until sampleCount) {
+            val lo = buffer[i * 2].toInt() and 0xFF
+            val hi = buffer[i * 2 + 1].toInt()
+            val sample = ((hi shl 8) or lo).toShort().toInt()
+            sumSquares += (sample * sample).toLong()
+        }
+
+        val meanSquare: Double = sumSquares / (1.0 * sampleCount)
+        val rms = kotlin.math.sqrt(meanSquare)
+        val normalized = (rms / 32768.0).coerceIn(0.0, 1.0)
+        return kotlin.math.sqrt(normalized).toFloat()
     }
 
     private fun wavHeader(pcmBytes: Int): ByteArray {
