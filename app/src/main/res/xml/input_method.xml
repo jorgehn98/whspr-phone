@@ -6,6 +6,6 @@
     <subtype
         android:imeSubtypeLocale="es_ES"
         android:languageTag="es-ES"
-        android:imeSubtypeMode="voice"
+        android:imeSubtypeMode="keyboard"
         android:label="@string/ime_name" />
 </input-method>

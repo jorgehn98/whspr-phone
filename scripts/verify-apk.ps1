@@ -115,7 +115,7 @@ try {
         'supportsSwitchingToNextInputMethod.*=true',
         'E: subtype',
         'imeSubtypeLocale.*"es_ES"',
-        'imeSubtypeMode.*"voice"',
+        'imeSubtypeMode.*"keyboard"',
         'languageTag.*"es-ES"'
     )
 

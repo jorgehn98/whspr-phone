@@ -2,39 +2,39 @@ package dev.jorgex.whspr
 
 import android.content.Intent
 import android.content.res.Configuration
-import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
-import android.graphics.Typeface
 import android.inputmethodservice.InputMethodService
 import android.os.Handler
 import android.os.Looper
 import android.text.InputType
-import android.util.TypedValue
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
-import android.widget.Button
-import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.TextView
 import android.widget.Toast
 
 class WhsprInputMethodService : InputMethodService() {
+
+    /** Máquina de estados del IME. Único punto de transición: sin flags booleanos sueltos. */
+    private enum class DictationState { KEYBOARD, RECORDING, TRANSCRIBING }
+
     private val mainHandler = Handler(Looper.getMainLooper())
     private val recorder by lazy { AudioRecorder(this) }
     private val settings by lazy { AppSettings(this) }
     private val modelStore by lazy { ModelStore(this) }
     private val transcriber = LocalTranscriber()
-    private var isListening = false
-    private var isProcessing = false
+
+    private var state = DictationState.KEYBOARD
     private var isSecureInput = false
     private var editorAction = EditorInfo.IME_ACTION_NONE
     private var noEnterAction = false
     private var inputSession = 0
     private var dictationModelId: String? = null
     private var destroyed = false
-    private var micButton: BubbleMicView? = null
-    private var micLabel: TextView? = null
+
+    private var keyboardView: KeyboardView? = null
+    private var voiceWaveView: VoiceWaveView? = null
 
     override fun onEvaluateFullscreenMode(): Boolean {
         return false
@@ -45,62 +45,52 @@ class WhsprInputMethodService : InputMethodService() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(20), dp(12), dp(20), dp(44))
+            setPadding(dp(8), dp(8), dp(8), dp(44))
             background = GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
                 intArrayOf(palette.backgroundTop, palette.background),
             )
         }
 
-        val settingsButton = ImageView(this).apply {
-            setImageResource(R.drawable.ic_settings)
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            setColorFilter(palette.accent)
-            val pad = dp(10)
-            setPadding(pad, pad, pad, pad)
-            val params = LinearLayout.LayoutParams(dp(44), dp(44))
-            params.setMargins(dp(2), 0, dp(6), 0)
-            layoutParams = params
-            setOnClickListener { openSettings() }
-        }
-
-        val bubble = BubbleMicView(this).apply {
+        val keyboard = KeyboardView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(170),
+                LinearLayout.LayoutParams.WRAP_CONTENT,
             )
+            setLanguage(settings.keyboardLanguage)
+            onText = { text -> currentInputConnection?.commitText(text, 1) }
+            onBackspace = { sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL) }
+            onEnter = { pressEnter() }
+            onLanguageToggle = { toggleKeyboardLanguage() }
+            onMic = { toggleDictation() }
+        }
+        keyboardView = keyboard
+
+        val wave = VoiceWaveView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(WAVE_HEIGHT_DP),
+            )
+            visibility = View.GONE
             setOnClickListener { toggleDictation() }
         }
-        micButton = bubble
+        voiceWaveView = wave
 
-        val label = TextView(this).apply {
-            textSize = 15f
-            gravity = Gravity.CENTER
-            setTextColor(palette.textPrimary)
-            setPadding(0, dp(10), 0, dp(16))
-        }
-        micLabel = label
-
-        val controls = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            addView(settingsButton)
-            addView(key(getString(R.string.key_space)) {
-                pressSpace()
-            })
-            addView(key(getString(R.string.key_delete)) {
-                currentInputConnection?.deleteSurroundingTextInCodePoints(1, 0)
-            })
-            addView(key(getString(R.string.key_enter)) {
-                pressEnter()
-            })
-        }
-
-        root.addView(bubble)
-        root.addView(label)
-        root.addView(controls)
-        updateMicButton()
+        root.addView(wave)
+        root.addView(keyboard)
+        applyState()
         return root
+    }
+
+    private fun pressEnter() {
+        if (!noEnterAction &&
+            editorAction != EditorInfo.IME_ACTION_NONE &&
+            editorAction != EditorInfo.IME_ACTION_UNSPECIFIED
+        ) {
+            currentInputConnection?.performEditorAction(editorAction)
+        } else {
+            currentInputConnection?.commitText("\n", 1)
+        }
     }
 
     private fun openSettings() {
@@ -111,75 +101,51 @@ class WhsprInputMethodService : InputMethodService() {
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
-        if (isListening) recorder.discard()
+        if (state != DictationState.KEYBOARD) recorder.discard()
         inputSession += 1
-        stopListening()
+        transitionTo(DictationState.KEYBOARD)
         isSecureInput = attribute?.let { isPasswordInput(it.inputType) } ?: false
         editorAction = attribute?.imeOptions?.and(EditorInfo.IME_MASK_ACTION) ?: EditorInfo.IME_ACTION_NONE
         noEnterAction = (attribute?.imeOptions?.and(EditorInfo.IME_FLAG_NO_ENTER_ACTION) ?: 0) != 0
-        updateMicButton()
+        applyState()
     }
 
     override fun onFinishInput() {
-        if (isListening) recorder.discard()
+        if (state != DictationState.KEYBOARD) recorder.discard()
         inputSession += 1
         isSecureInput = false
         editorAction = EditorInfo.IME_ACTION_NONE
         noEnterAction = false
-        stopListening()
+        transitionTo(DictationState.KEYBOARD)
         super.onFinishInput()
     }
 
     override fun onDestroy() {
         destroyed = true
-        if (isListening) recorder.discard()
+        if (state != DictationState.KEYBOARD) recorder.discard()
         inputSession += 1
         dictationModelId = null
-        isProcessing = false
-        micButton = null
-        micLabel = null
+        state = DictationState.KEYBOARD
+        keyboardView = null
+        voiceWaveView = null
         mainHandler.removeCallbacksAndMessages(null)
         super.onDestroy()
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        if (micButton != null) {
+        if (keyboardView != null) {
             setInputView(onCreateInputView())
-            updateMicButton()
         }
     }
 
-    private fun key(label: String, action: () -> Unit): Button {
-        return Button(this).apply {
-            text = "[$label]"
-            isAllCaps = false
-            isSingleLine = true
-            typeface = Typeface.MONOSPACE
-            minWidth = 0
-            minHeight = 0
-            setPadding(dp(3), 0, dp(3), 0)
-            setTextColor(WhsprColors.forContext(context).accent)
-            setAutoSizeTextTypeUniformWithConfiguration(8, 12, 1, TypedValue.COMPLEX_UNIT_SP)
-            background = keyBackground()
-            val params = LinearLayout.LayoutParams(0, dp(44), 1f)
-            params.setMargins(dp(4), 0, dp(4), 0)
-            layoutParams = params
-            setOnClickListener { action() }
-        }
-    }
-
-    private fun keyBackground(): Drawable {
-        val palette = WhsprColors.forContext(this)
-        return surfaceRippleBackground(palette, dp(5).toFloat(), dp(1), palette.accentMuted)
-    }
+    // --- Máquina de estados del dictado ---
 
     private fun toggleDictation() {
-        if (isProcessing) return
-        if (isListening) {
-            finishDictation()
-        } else {
-            startListening()
+        when (state) {
+            DictationState.KEYBOARD -> startListening()
+            DictationState.RECORDING -> finishDictation()
+            DictationState.TRANSCRIBING -> Unit // idempotente: ignorar mientras transcribe
         }
     }
 
@@ -194,7 +160,7 @@ class WhsprInputMethodService : InputMethodService() {
             return
         }
         if (modelStore.resolveStatus(settings, model) { modelStore.isDownloaded(model) } != ModelStatus.Ready) {
-            showMessage(R.string.error_missing_model)
+            openSettings()
             return
         }
         dictationModelId = model.id
@@ -203,36 +169,35 @@ class WhsprInputMethodService : InputMethodService() {
             showMessage(R.string.error_recording_failed)
             return
         }
-        isListening = true
-        updateMicButton()
-    }
-
-    private fun stopListening() {
-        isListening = false
-        if (!isProcessing) {
-            dictationModelId = null
-        }
-        updateMicButton()
+        recorder.onLevel = { level -> voiceWaveView?.setLevel(level) }
+        transitionTo(DictationState.RECORDING)
+        applyState()
     }
 
     private fun finishDictation() {
         val sessionModelId = dictationModelId ?: settings.modelId
         val audioFile = recorder.stop()
-        stopListening()
+        recorder.onLevel = null
+        transitionTo(DictationState.TRANSCRIBING)
+        applyState()
         if (audioFile == null) {
+            dictationModelId = null
             showMessage(R.string.error_no_audio)
+            transitionTo(DictationState.KEYBOARD)
+            applyState()
             return
         }
 
         val session = inputSession
         if (settings.modelId != sessionModelId) {
+            dictationModelId = null
             runCatching { audioFile.delete() }
+            transitionTo(DictationState.KEYBOARD)
+            applyState()
             return
         }
         val model = ModelCatalog.byId(sessionModelId)
         val language = settings.language
-        isProcessing = true
-        updateMicButton()
 
         Thread({
             var modelOk = false
@@ -254,9 +219,10 @@ class WhsprInputMethodService : InputMethodService() {
             }
             mainHandler.post {
                 if (destroyed) return@post
-                isProcessing = false
-                updateMicButton()
+                dictationModelId = null
                 if (session != inputSession) return@post
+                transitionTo(DictationState.KEYBOARD)
+                applyState()
                 if (settings.modelId != sessionModelId) return@post
                 val finalText = text
                 if (!modelOk) {
@@ -272,46 +238,48 @@ class WhsprInputMethodService : InputMethodService() {
         }, "whspr-transcribe").start()
     }
 
+    private fun transitionTo(newState: DictationState) {
+        state = newState
+    }
+
+    private fun toggleKeyboardLanguage() {
+        val next = if (settings.keyboardLanguage == KeyboardLanguage.ES) KeyboardLanguage.EN else KeyboardLanguage.ES
+        settings.keyboardLanguage = next
+        keyboardView?.setLanguage(next)
+    }
+
     private fun showMessage(messageRes: Int) {
         Toast.makeText(this, messageRes, Toast.LENGTH_SHORT).show()
     }
 
-    private fun pressEnter() {
-        if (!noEnterAction &&
-            editorAction != EditorInfo.IME_ACTION_NONE &&
-            editorAction != EditorInfo.IME_ACTION_UNSPECIFIED
-        ) {
-            currentInputConnection?.performEditorAction(editorAction)
-        } else {
-            currentInputConnection?.commitText("\n", 1)
-        }
-    }
-
-    private fun pressSpace() {
+    private fun commitTranscription(text: String) {
+        currentInputConnection?.commitText(text, 1)
         val beforeCursor = currentInputConnection?.getTextBeforeCursor(1, 0)
         if (beforeCursor != " ") {
             currentInputConnection?.commitText(" ", 1)
         }
     }
 
-    private fun commitTranscription(text: String) {
-        currentInputConnection?.commitText(text, 1)
-        pressSpace()
-    }
-
-    private fun updateMicButton() {
-        micButton?.isEnabled = !isSecureInput && !isProcessing
-        micButton?.setMode(
-            when {
-                isSecureInput -> BubbleMicView.Mode.DISABLED
-                isProcessing -> BubbleMicView.Mode.PROCESSING
-                isListening -> BubbleMicView.Mode.LISTENING
-                else -> BubbleMicView.Mode.IDLE
-            },
-        )
-        val labelText = if (isSecureInput) getString(R.string.mic_disabled_secure) else ""
-        micLabel?.text = labelText
-        micLabel?.visibility = if (labelText.isEmpty()) View.GONE else View.VISIBLE
+    /** Refleja [state] en las vistas: KEYBOARD/RECORDING/TRANSCRIBING intercambian teclado y onda. */
+    private fun applyState() {
+        val keyboard = keyboardView ?: return
+        val wave = voiceWaveView ?: return
+        when (state) {
+            DictationState.KEYBOARD -> {
+                keyboard.visibility = View.VISIBLE
+                wave.visibility = View.GONE
+            }
+            DictationState.RECORDING -> {
+                keyboard.visibility = View.GONE
+                wave.visibility = View.VISIBLE
+                wave.setMode(VoiceWaveView.Mode.RECORDING)
+            }
+            DictationState.TRANSCRIBING -> {
+                keyboard.visibility = View.GONE
+                wave.visibility = View.VISIBLE
+                wave.setMode(VoiceWaveView.Mode.TRANSCRIBING)
+            }
+        }
     }
 
     private fun isPasswordInput(inputType: Int): Boolean {
@@ -324,5 +292,9 @@ class WhsprInputMethodService : InputMethodService() {
             InputType.TYPE_CLASS_NUMBER -> variation == InputType.TYPE_NUMBER_VARIATION_PASSWORD
             else -> false
         }
+    }
+
+    private companion object {
+        const val WAVE_HEIGHT_DP = 96
     }
 }

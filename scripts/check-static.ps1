@@ -281,8 +281,8 @@ try {
     }
 
     $inputMethodText = Get-Content -Raw -Path ".\app\src\main\res\xml\input_method.xml"
-    if ($inputMethodText -notmatch 'android:imeSubtypeMode="voice"') {
-        Write-Host "MISS input method subtype -> expected voice"
+    if ($inputMethodText -notmatch 'android:imeSubtypeMode="keyboard"') {
+        Write-Host "MISS input method subtype -> expected keyboard"
         $failed += 1
     } elseif ($inputMethodText -match 'android:isAuxiliary="true"') {
         Write-Host "MISS input method subtype -> should be selectable, not auxiliary"
@@ -291,7 +291,7 @@ try {
         Write-Host "MISS input method subtype -> expected languageTag es-ES"
         $failed += 1
     } else {
-        Write-Host "OK   input method voice subtype"
+        Write-Host "OK   input method keyboard subtype"
     }
 
     $recognitionServiceText = Get-Content -Raw -Path ".\app\src\main\java\dev\jorgex\whspr\WhsprRecognitionService.kt"
@@ -496,7 +496,7 @@ try {
     }
     if (
         $imeText -notmatch 'isSecureInput = attribute\?\.let \{ isPasswordInput\(it\.inputType\) \} \?: false' -or
-        $imeText -notmatch 'micButton\?\.isEnabled = !isSecureInput && !isProcessing' -or
+        $imeText -notmatch 'if \(isSecureInput\) \{\s*\n\s*showMessage\(R\.string\.error_secure_input\)' -or
         $imeText -notmatch 'private fun isPasswordInput\(inputType: Int\): Boolean'
     ) {
         Write-Host "MISS secure input guard -> IME must not dictate into password fields"

@@ -12,11 +12,11 @@ import kotlin.math.sin
 
 /**
  * Visualizador de onda de voz del teclado Whspr: barras verticales centradas
- * y simétricas, monocromas. Sustituye visualmente a la burbuja ASCII.
+ * y simétricas, monocromas. Sustituye visualmente a la antigua burbuja ASCII.
  *
- * Sigue la disciplina de [BubbleMicView] (paleta resuelta una vez, loop con
- * [postInvalidateOnAnimation] guardado por visibilidad) pero con una estética
- * más simple: sin rejilla de caracteres, solo barras.
+ * Misma disciplina que el resto de vistas del IME (paleta resuelta una vez,
+ * loop con [postInvalidateOnAnimation] guardado por visibilidad) pero con una
+ * estética más simple: sin rejilla de caracteres, solo barras.
  *
  * [setLevel] se invoca desde el hilo de audio ([AudioRecorder.onLevel]): solo
  * escribe un `@Volatile Float`, nunca toca la vista. El suavizado (attack
