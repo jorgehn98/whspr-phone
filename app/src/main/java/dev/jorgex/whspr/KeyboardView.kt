@@ -90,11 +90,18 @@ class KeyboardView @JvmOverloads constructor(
     }
 
     private fun render() {
+        // removeAllViews() saca de la jerarquía la tecla de BACKSPACE que pudiera
+        // estar en hold: sin ACTION_UP/CANCEL, repeatRunnable seguiría borrando
+        // indefinidamente sobre una vista ya desconectada. Cortar el repeat aquí
+        // cubre también el re-render disparado por un cambio de ajuste a mitad
+        // de hold (setLanguage/setPeriodSide/setShowNumberRow), no solo el tap.
+        cancelRepeat()
+        repeatFired = false
         removeAllViews()
         val keyboardLayout = KeyboardLayouts.layoutFor(language, layer, periodSide, showNumberRow)
         // La altura total del grid es siempre HEIGHT_DP (constante), la reparten
         // las filas que haya: con la fila numérica oculta en LETRAS quedan 4 filas
-        // en vez de 5 y cada una crece para llenar el mismo alto total (tarea 13).
+        // en vez de 5 y cada una crece para llenar el mismo alto total.
         val rowHeightDp = HEIGHT_DP / keyboardLayout.rows.size
         for (row in keyboardLayout.rows) {
             addView(buildRow(row, rowHeightDp))
@@ -412,11 +419,12 @@ class KeyboardView @JvmOverloads constructor(
     companion object {
         // SYMBOLS_1/SYMBOLS_2 declaran siempre 5 filas (dígitos, 2 filas de símbolos,
         // fila con page/backspace, fila inferior); es la referencia de altura total.
-        // LETRAS declara 5 filas por defecto o 4 si showNumberRow está desactivado
-        // (tarea 13): en ese caso cada fila crece para mantener el mismo alto total
-        // HEIGHT_DP (ver render()), que es siempre constante y determinista, sin
-        // requerir medir tras layout: VoiceWaveView.heightDp la usa para no cambiar
-        // de alto al alternar entre teclado y onda.
+        // LETRAS declara 5 filas por defecto o 4 si showNumberRow está desactivado:
+        // en ese caso cada fila crece para mantener el mismo alto total HEIGHT_DP
+        // (ver render()), que es siempre constante y determinista, sin requerir
+        // medir tras layout: el IME fija la altura de la onda a KeyboardView.HEIGHT_DP
+        // (ver WhsprInputMethodService.onCreateInputView) para no cambiar de alto
+        // al alternar entre teclado y onda.
         private const val ROW_HEIGHT_DP = 48
         private const val ROW_COUNT = 5
         const val HEIGHT_DP = ROW_HEIGHT_DP * ROW_COUNT

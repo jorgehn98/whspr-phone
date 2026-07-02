@@ -247,7 +247,7 @@ class WhsprInputMethodService : InputMethodService() {
                     // Dictado sin habla: Whisper puede devolver solo una etiqueta no
                     // verbal ("[MÚSICA]") o directamente texto en blanco. En ambos
                     // casos no hay nada que pegar; es el resultado esperado, no un
-                    // error, así que no se muestra Toast (tarea 13).
+                    // error, así que no se muestra Toast.
                     Unit
                 } else {
                     commitTranscription(finalText)
@@ -269,7 +269,7 @@ class WhsprInputMethodService : InputMethodService() {
     /**
      * Relee language/periodSide/showNumberRow de [settings] en cada onStartInput: si el
      * proceso del IME sigue vivo tras cambiar un ajuste en la app, el teclado debe
-     * reflejarlo sin esperar a rotar (tarea 13). Cada setter de KeyboardView ya compara
+     * reflejarlo sin esperar a rotar. Cada setter de KeyboardView ya compara
      * contra su valor actual y solo re-renderiza si cambió, así que llamarlos siempre
      * aquí es barato y no tiene efectos secundarios cuando nada cambió.
      */
@@ -339,7 +339,7 @@ class WhsprInputMethodService : InputMethodService() {
  * elimina un token entre corchetes/paréntesis si su contenido, en minúsculas y sin
  * acentos, coincide exactamente con una etiqueta conocida; cualquier otro corchete o
  * paréntesis (con texto dictado real dentro) se deja intacto. Tras filtrar, normaliza
- * espacios repetidos y hace trim (tarea 13).
+ * espacios repetidos y hace trim.
  */
 private val NON_VERBAL_TAG_PATTERN = Regex("[\\[(][^\\[\\]()]+[\\])]")
 private val NON_VERBAL_LABELS = setOf(
@@ -364,7 +364,6 @@ private fun stripNonVerbalTags(text: String): String {
 }
 
 private fun normalizeTagLabel(label: String): String {
-    val stripped = java.text.Normalizer.normalize(label.trim().lowercase(), java.text.Normalizer.Form.NFD)
+    return java.text.Normalizer.normalize(label.trim().lowercase(), java.text.Normalizer.Form.NFD)
         .replace(Regex("\\p{Mn}+"), "")
-    return stripped
 }

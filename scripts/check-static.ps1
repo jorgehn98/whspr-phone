@@ -189,7 +189,7 @@ try {
     $serviceNames = [regex]::Matches($manifestText, '<service[\s\S]*?android:name="([^"]+)"') | ForEach-Object {
         $_.Groups[1].Value
     }
-    # Tarea 14: SettingsActivity es una Activity legitima ("Mas ajustes"), no exportada,
+    # SettingsActivity es una Activity legitima ("Mas ajustes"), no exportada,
     # que aloja los ajustes del teclado movidos fuera de MainActivity.
     $expectedActivities = @(".MainActivity", ".SettingsActivity")
     $expectedServices = @(".WhsprInputMethodService", ".WhsprRecognitionService")

@@ -42,7 +42,7 @@ data class KeyboardLayout(val rows: List<List<Key>>)
 
 /**
  * Layouts declarativos del teclado por idioma y capa. Datos puros; el grid de vistas
- * (tarea 03) los renderiza sin lógica adicional.
+ * (KeyboardView) los renderiza sin lógica adicional.
  */
 object KeyboardLayouts {
 
@@ -58,7 +58,7 @@ object KeyboardLayouts {
                 KeyboardLanguage.EN -> lettersEn(periodSide, showNumberRow)
             }
             // Los símbolos siempre incluyen la fila numérica, sea cual sea el
-            // ajuste: showNumberRow solo afecta a las letras (ver tarea 13).
+            // ajuste: showNumberRow solo afecta a las letras.
             KeyboardLayer.SYMBOLS_1 -> symbols1(periodSide)
             KeyboardLayer.SYMBOLS_2 -> symbols2(periodSide)
         }

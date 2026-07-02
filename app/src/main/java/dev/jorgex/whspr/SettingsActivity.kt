@@ -1,10 +1,7 @@
 package dev.jorgex.whspr
 
 import android.app.Activity
-import android.app.AlertDialog
-import android.content.res.ColorStateList
 import android.graphics.Typeface
-import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.Gravity
 import android.widget.Button
@@ -87,29 +84,14 @@ class SettingsActivity : Activity() {
 
     private fun styleButton(button: Button) {
         button.isAllCaps = false
-        button.setTextColor(buttonTextColors())
-        button.background = buttonBackground()
+        button.setTextColor(defaultButtonTextColors())
+        button.background = defaultButtonBackground()
         val params = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             dp(52),
         )
         params.setMargins(0, dp(8), 0, 0)
         button.layoutParams = params
-    }
-
-    private fun buttonBackground(): Drawable {
-        val palette = WhsprColors.forContext(this)
-        return surfaceRippleBackground(palette, dp(14).toFloat(), dp(1), palette.surfaceStroke)
-    }
-
-    private fun buttonTextColors(): ColorStateList {
-        val palette = WhsprColors.forContext(this)
-        val states = arrayOf(
-            intArrayOf(android.R.attr.state_enabled),
-            intArrayOf(-android.R.attr.state_enabled),
-        )
-        val colors = intArrayOf(palette.textPrimary, palette.textMuted)
-        return ColorStateList(states, colors)
     }
 
     private fun refreshStatus() {
@@ -126,16 +108,12 @@ class SettingsActivity : Activity() {
 
     private fun showPeriodSidePicker() {
         val items = PeriodSide.entries.toTypedArray()
-        val names = items.map { periodSideName(it) }.toTypedArray()
+        val names = items.map { periodSideName(it) }
         val current = items.indexOf(settings.periodSide).coerceAtLeast(0)
-        AlertDialog.Builder(this)
-            .setTitle(R.string.period_side_title)
-            .setSingleChoiceItems(names, current) { dialog, which ->
-                settings.periodSide = items[which]
-                dialog.dismiss()
-                refreshStatus()
-            }
-            .show()
+        showSingleChoicePicker(R.string.period_side_title, names, current) { which ->
+            settings.periodSide = items[which]
+            refreshStatus()
+        }
     }
 
     private fun showNumberRowName(show: Boolean): String {
@@ -144,15 +122,11 @@ class SettingsActivity : Activity() {
 
     private fun showNumberRowPicker() {
         val items = booleanArrayOf(true, false)
-        val names = items.map { showNumberRowName(it) }.toTypedArray()
+        val names = items.map { showNumberRowName(it) }
         val current = items.indexOf(settings.showNumberRow).coerceAtLeast(0)
-        AlertDialog.Builder(this)
-            .setTitle(R.string.show_number_row_title)
-            .setSingleChoiceItems(names, current) { dialog, which ->
-                settings.showNumberRow = items[which]
-                dialog.dismiss()
-                refreshStatus()
-            }
-            .show()
+        showSingleChoicePicker(R.string.show_number_row_title, names, current) { which ->
+            settings.showNumberRow = items[which]
+            refreshStatus()
+        }
     }
 }
