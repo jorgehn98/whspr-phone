@@ -381,6 +381,9 @@ class KeyboardView @JvmOverloads constructor(
         }
         row.background = frame
 
+        // El popup es una ventana propia (WindowManager), no desciende de la raíz del
+        // IME: no hereda su filterTouchesWhenObscured y hay que activarlo aquí también.
+        row.filterTouchesWhenObscured = true
         val popup = PopupWindow(row, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         popup.isOutsideTouchable = true
         popup.isFocusable = false
