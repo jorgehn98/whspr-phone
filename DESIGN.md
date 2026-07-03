@@ -72,6 +72,17 @@ lógica). Características:
     `accentBright`, icono `ic_key_shift_caps` (con barra superior) tintado `onAccent`
     para mantener contraste.
 
+### Icono de la app (launcher)
+
+Adaptive icon vectorial (`mipmap-anydpi-v26` + drawables), derivado del
+visualizador de voz: 9 barras verticales blancas (`#FFFFFF`) con la envolvente
+simétrica del modo RECORDING, sobre fondo carbón `#0E0E10` (token `background`
+oscuro). Menos barras que `VoiceWaveView` (9 frente a 19) a propósito: a tamaño
+launcher las 19 barras finas pierden definición. La capa `monochrome` reutiliza
+el foreground, así que los themed icons de Android 13+ salen gratis. Los hex van
+en los drawables del icono porque los recursos de launcher no pueden leer
+`WhsprColors`; son los mismos valores de la paleta oscura.
+
 ### Visualizador de voz (`VoiceWaveView`)
 
 Barras verticales (19 unidades, finas) centradas y simétricas, dibujadas con `Canvas`.
