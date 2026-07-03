@@ -25,3 +25,38 @@ object NativeWhisper {
     @JvmStatic
     private external fun transcribeNative(audioPath: String, modelPath: String, language: String): String?
 }
+
+private val NON_VERBAL_TAG_PATTERN = Regex("[\\[(][^\\[\\]()]+[\\])]")
+private val NON_VERBAL_LABELS = setOf(
+    "musica", "music",
+    "aplausos", "applause",
+    "risas", "laughter",
+    "ruido", "noise",
+    "silencio", "silence",
+    "sonido", "sound",
+    "suspiros", "sighs",
+)
+private val NON_VERBAL_SYMBOLS = Regex("[♪♫]")
+
+/**
+ * Elimina de [text] las etiquetas no verbales que Whisper emite cuando el audio no
+ * tiene habla (p. ej. "[MÚSICA]", "(music)", "♪"). Lista blanca cerrada: solo se
+ * elimina un token entre corchetes/paréntesis si su contenido, en minúsculas y sin
+ * acentos, coincide exactamente con una etiqueta conocida; cualquier otro corchete o
+ * paréntesis (con texto dictado real dentro) se deja intacto. Tras filtrar, normaliza
+ * espacios repetidos y hace trim.
+ */
+internal fun stripNonVerbalTags(text: String): String {
+    val withoutTags = NON_VERBAL_TAG_PATTERN.replace(text) { match ->
+        val inner = match.value.substring(1, match.value.length - 1)
+        if (normalizeTagLabel(inner) in NON_VERBAL_LABELS) "" else match.value
+    }
+    return withoutTags.replace(NON_VERBAL_SYMBOLS, "")
+        .replace(Regex("\\s+"), " ")
+        .trim()
+}
+
+private fun normalizeTagLabel(label: String): String {
+    return java.text.Normalizer.normalize(label.trim().lowercase(), java.text.Normalizer.Form.NFD)
+        .replace(Regex("\\p{Mn}+"), "")
+}

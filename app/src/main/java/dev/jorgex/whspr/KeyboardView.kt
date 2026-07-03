@@ -44,6 +44,7 @@ class KeyboardView @JvmOverloads constructor(
     private var shiftState = ShiftState.NONE
     private var periodSide = PeriodSide.LEFT
     private var showNumberRow = true
+    private var isSecureInput = false
 
     private val palette = WhsprColors.forContext(context)
     private val repeatHandler = Handler(Looper.getMainLooper())
@@ -80,6 +81,13 @@ class KeyboardView @JvmOverloads constructor(
     fun setShowNumberRow(newShowNumberRow: Boolean) {
         if (showNumberRow == newShowNumberRow) return
         showNumberRow = newShowNumberRow
+        render()
+    }
+
+    /** Atenúa la tecla MIC cuando el campo activo es de contraseña (IME) y re-renderiza. */
+    fun setSecureInput(newIsSecureInput: Boolean) {
+        if (isSecureInput == newIsSecureInput) return
+        isSecureInput = newIsSecureInput
         render()
     }
 
@@ -291,7 +299,16 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun setLayer(newLayer: KeyboardLayer) {
         layer = newLayer
+        resetShiftTransient()
         render()
+    }
+
+    /** Descarta el SHIFT transitorio (una mayúscula) al cambiar de capa; CAPS_LOCK no se toca. */
+    private fun resetShiftTransient() {
+        if (shiftState == ShiftState.SHIFT) {
+            shiftState = ShiftState.NONE
+            lastShiftTapAt = 0L
+        }
     }
 
     private fun togglePage() {
@@ -311,6 +328,7 @@ class KeyboardView @JvmOverloads constructor(
             // oscuro (onAccent) para mantener contraste, no accentBright sobre sí mismo.
             key.type == KeyType.SHIFT && shiftState == ShiftState.CAPS_LOCK -> palette.onAccent
             key.type == KeyType.SHIFT && shiftState == ShiftState.SHIFT -> palette.accentBright
+            key.type == KeyType.MIC && isSecureInput -> palette.disabled
             else -> palette.textPrimary
         }
     }
@@ -363,6 +381,9 @@ class KeyboardView @JvmOverloads constructor(
         }
         row.background = frame
 
+        // El popup es una ventana propia (WindowManager), no desciende de la raíz del
+        // IME: no hereda su filterTouchesWhenObscured y hay que activarlo aquí también.
+        row.filterTouchesWhenObscured = true
         val popup = PopupWindow(row, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         popup.isOutsideTouchable = true
         popup.isFocusable = false

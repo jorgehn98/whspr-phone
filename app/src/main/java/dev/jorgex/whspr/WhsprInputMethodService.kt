@@ -50,6 +50,13 @@ class WhsprInputMethodService : InputMethodService() {
                 GradientDrawable.Orientation.TOP_BOTTOM,
                 intArrayOf(palette.backgroundTop, palette.background),
             )
+            // Anti-tapjacking: si otra ventana se superpone al teclado (overlay
+            // malicioso), Android marca los MotionEvent entrantes con
+            // FLAG_WINDOW_IS_(PARTIALLY_)OBSCURED. Al activarlo en la vista raíz,
+            // dispatchTouchEvent descarta esos eventos antes de que lleguen a
+            // ninguna tecla hija (KeyboardView), sin necesidad de tocar las teclas
+            // individuales.
+            filterTouchesWhenObscured = true
         }
 
         // Teclado y onda comparten la MISMA altura fija (KeyboardView.HEIGHT_DP):
@@ -71,6 +78,7 @@ class WhsprInputMethodService : InputMethodService() {
             onMic = { toggleDictation() }
         }
         keyboardView = keyboard
+        keyboard.setSecureInput(isSecureInput)
 
         val wave = VoiceWaveView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
@@ -126,6 +134,7 @@ class WhsprInputMethodService : InputMethodService() {
         editorAction = EditorInfo.IME_ACTION_NONE
         noEnterAction = false
         transitionTo(DictationState.KEYBOARD)
+        keyboardView?.setSecureInput(false)
         super.onFinishInput()
     }
 
@@ -175,8 +184,20 @@ class WhsprInputMethodService : InputMethodService() {
         }
         dictationModelId = model.id
         recorder.onLevel = { level -> voiceWaveView?.setLevel(level) }
+        // Se invoca desde el hilo whspr-audio: saltar a main con post() antes de
+        // tocar estado/finishDictation (que llama a recorder.stop() -> worker?.join,
+        // y worker ES ese mismo hilo de audio: llamarlo síncronamente aquí bloquearía).
+        val session = inputSession
+        recorder.onAutoStop = {
+            mainHandler.post {
+                if (destroyed || session != inputSession) return@post
+                if (state != DictationState.RECORDING) return@post
+                finishDictation()
+            }
+        }
         if (!recorder.start()) {
             recorder.onLevel = null
+            recorder.onAutoStop = null
             dictationModelId = null
             showMessage(R.string.error_recording_failed)
             return
@@ -189,6 +210,7 @@ class WhsprInputMethodService : InputMethodService() {
         val sessionModelId = dictationModelId ?: settings.modelId
         val audioFile = recorder.stop()
         recorder.onLevel = null
+        recorder.onAutoStop = null
         transitionTo(DictationState.TRANSCRIBING)
         applyState()
         if (audioFile == null) {
@@ -278,6 +300,7 @@ class WhsprInputMethodService : InputMethodService() {
         keyboard.setLanguage(settings.keyboardLanguage)
         keyboard.setPeriodSide(settings.periodSide)
         keyboard.setShowNumberRow(settings.showNumberRow)
+        keyboard.setSecureInput(isSecureInput)
     }
 
     private fun showMessage(messageRes: Int) {
@@ -291,7 +314,10 @@ class WhsprInputMethodService : InputMethodService() {
             return
         }
         connection.commitText(text, 1)
-        val beforeCursor = connection.getTextBeforeCursor(1, 0)
+        // .toString() fuerza comparación por contenido: algunos editores devuelven
+        // SpannableString/SpannableStringBuilder, que no sobrescriben equals() y
+        // comparan por identidad, provocando un espacio duplicado.
+        val beforeCursor = connection.getTextBeforeCursor(1, 0)?.toString()
         if (beforeCursor != " ") {
             connection.commitText(" ", 1)
         }
@@ -331,39 +357,4 @@ class WhsprInputMethodService : InputMethodService() {
         }
     }
 
-}
-
-/**
- * Elimina de [text] las etiquetas no verbales que Whisper emite cuando el audio no
- * tiene habla (p. ej. "[MÚSICA]", "(music)", "♪"). Lista blanca cerrada: solo se
- * elimina un token entre corchetes/paréntesis si su contenido, en minúsculas y sin
- * acentos, coincide exactamente con una etiqueta conocida; cualquier otro corchete o
- * paréntesis (con texto dictado real dentro) se deja intacto. Tras filtrar, normaliza
- * espacios repetidos y hace trim.
- */
-private val NON_VERBAL_TAG_PATTERN = Regex("[\\[(][^\\[\\]()]+[\\])]")
-private val NON_VERBAL_LABELS = setOf(
-    "musica", "music",
-    "aplausos", "applause",
-    "risas", "laughter",
-    "ruido", "noise",
-    "silencio", "silence",
-    "sonido", "sound",
-    "suspiros", "sighs",
-)
-private val NON_VERBAL_SYMBOLS = Regex("[♪♫]")
-
-private fun stripNonVerbalTags(text: String): String {
-    val withoutTags = NON_VERBAL_TAG_PATTERN.replace(text) { match ->
-        val inner = match.value.substring(1, match.value.length - 1)
-        if (normalizeTagLabel(inner) in NON_VERBAL_LABELS) "" else match.value
-    }
-    return withoutTags.replace(NON_VERBAL_SYMBOLS, "")
-        .replace(Regex("\\s+"), " ")
-        .trim()
-}
-
-private fun normalizeTagLabel(label: String): String {
-    return java.text.Normalizer.normalize(label.trim().lowercase(), java.text.Normalizer.Form.NFD)
-        .replace(Regex("\\p{Mn}+"), "")
 }
