@@ -50,6 +50,13 @@ class WhsprInputMethodService : InputMethodService() {
                 GradientDrawable.Orientation.TOP_BOTTOM,
                 intArrayOf(palette.backgroundTop, palette.background),
             )
+            // Anti-tapjacking: si otra ventana se superpone al teclado (overlay
+            // malicioso), Android marca los MotionEvent entrantes con
+            // FLAG_WINDOW_IS_(PARTIALLY_)OBSCURED. Al activarlo en la vista raíz,
+            // dispatchTouchEvent descarta esos eventos antes de que lleguen a
+            // ninguna tecla hija (KeyboardView), sin necesidad de tocar las teclas
+            // individuales.
+            filterTouchesWhenObscured = true
         }
 
         // Teclado y onda comparten la MISMA altura fija (KeyboardView.HEIGHT_DP):
