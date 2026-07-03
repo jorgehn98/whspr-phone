@@ -148,6 +148,9 @@ Pruebas mínimas antes de dar la app por buena.
 4. Escribir varias letras en mayúsculas.
 5. Pulsar **SHIFT** de nuevo para apagar CAPS_LOCK.
 6. Con SHIFT o CAPS activo, usar long-press para escribir tildes/acentos: deben salir en mayúsculas (É, Ñ, etc.).
+7. Pulsar **SHIFT** una vez (transitorio), pasar a **!#1** y volver con **ABC**: confirmar
+   que SHIFT quedó apagado (no escribe mayúscula). Activar CAPS_LOCK, hacer el mismo viaje
+   por símbolos y confirmar que CAPS_LOCK SÍ se conserva.
 
 ### Long-press
 
@@ -174,6 +177,9 @@ Pruebas mínimas antes de dar la app por buena.
 10. Dictar en silencio (sin hablar, unos segundos de grabación) y parar. Confirmar que no
     se pega ningún texto ni etiqueta tipo "[MÚSICA]"/"(music)"/"♪" en el campo, no aparece
     ningún Toast de error, y el teclado vuelve solo al estado normal.
+11. Dejar una grabación correr sin tocar nada hasta el límite (~60 s). Confirmar que la
+    grabación se detiene SOLA al llegar al límite, pasa a TRANSCRIBING sin intervención y
+    el texto dictado se inserta en el campo (la onda no se queda animando indefinidamente).
 
 ## Dictado de voz Android
 
@@ -188,11 +194,15 @@ Pruebas mínimas antes de dar la app por buena.
 9. En Android 12+, confirmar que el indicador de micrófono atribuye el uso al flujo de dictado esperado y no deja el micro activo tras devolver resultado.
 10. En Android 13+, confirmar que el teclado/cliente detecta soporte de voz después de descargar el modelo; antes de descargarlo debe fallar como no disponible, no quedarse colgado.
 11. En Android 14+, si el cliente pide descarga de modelo vía `RecognitionService`, confirmar que Whspr responde éxito si ya está descargado y descarga agendada si falta.
+12. Dictar en silencio desde otro teclado (proveedor Whspr) y confirmar que el cliente recibe
+    un error de "sin resultado" y NO la etiqueta cruda tipo "[MÚSICA]"/"(music)".
 
 ## Seguridad y bordes
 
 1. Abrir un campo de contraseña.
-2. Confirmar que el micrófono aparece como no disponible.
+2. Confirmar que el micrófono aparece como no disponible: la tecla se ve ATENUADA (gris
+   `disabled`, claramente distinta del resto) y al pulsarla muestra el aviso sin grabar.
+   Al volver a un campo normal, la tecla recupera su color normal.
 3. Abrir un campo URL normal y confirmar que Whspr sí permite dictar.
 4. Abrir una contraseña numérica/PIN y confirmar que Whspr no permite dictar.
 5. Empezar dictado en un campo normal, parar, y cambiar rápido a otro campo.
