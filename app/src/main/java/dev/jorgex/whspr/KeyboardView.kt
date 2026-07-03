@@ -299,7 +299,16 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun setLayer(newLayer: KeyboardLayer) {
         layer = newLayer
+        resetShiftTransient()
         render()
+    }
+
+    /** Descarta el SHIFT transitorio (una mayúscula) al cambiar de capa; CAPS_LOCK no se toca. */
+    private fun resetShiftTransient() {
+        if (shiftState == ShiftState.SHIFT) {
+            shiftState = ShiftState.NONE
+            lastShiftTapAt = 0L
+        }
     }
 
     private fun togglePage() {
