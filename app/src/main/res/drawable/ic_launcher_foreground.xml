@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Logo Whspr: 9 barras verticales (píldoras) con la envolvente simétrica del
-     visualizador de voz (VoiceWaveView, modo RECORDING). Las barras ocupan el
-     65% del área visible tras la máscara del launcher (~72dp de los 108) y
-     caben enteras en la safe zone circular de 66dp. -->
+     visualizador de voz (VoiceWaveView, modo RECORDING). Las barras ocupan 46.8dp
+     de los 108 del viewport — el 65% de los ~72dp que quedan visibles tras la
+     máscara del launcher — y caben enteras en la safe zone circular de 66dp. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
