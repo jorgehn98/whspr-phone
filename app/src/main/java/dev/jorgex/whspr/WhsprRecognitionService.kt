@@ -264,7 +264,7 @@ class WhsprRecognitionService : RecognitionService() {
                 runCatching { audioFile.delete() }
             }
             complete(session) {
-                val finalText = text
+                val finalText = text?.let(::stripNonVerbalTags)
                 when {
                     modelChanged || !modelOk || finalText == null ->
                         listener.error(SpeechRecognizer.ERROR_CLIENT)
