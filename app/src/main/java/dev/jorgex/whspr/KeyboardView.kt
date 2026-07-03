@@ -44,6 +44,7 @@ class KeyboardView @JvmOverloads constructor(
     private var shiftState = ShiftState.NONE
     private var periodSide = PeriodSide.LEFT
     private var showNumberRow = true
+    private var isSecureInput = false
 
     private val palette = WhsprColors.forContext(context)
     private val repeatHandler = Handler(Looper.getMainLooper())
@@ -80,6 +81,13 @@ class KeyboardView @JvmOverloads constructor(
     fun setShowNumberRow(newShowNumberRow: Boolean) {
         if (showNumberRow == newShowNumberRow) return
         showNumberRow = newShowNumberRow
+        render()
+    }
+
+    /** Atenúa la tecla MIC cuando el campo activo es de contraseña (IME) y re-renderiza. */
+    fun setSecureInput(newIsSecureInput: Boolean) {
+        if (isSecureInput == newIsSecureInput) return
+        isSecureInput = newIsSecureInput
         render()
     }
 
@@ -311,6 +319,7 @@ class KeyboardView @JvmOverloads constructor(
             // oscuro (onAccent) para mantener contraste, no accentBright sobre sí mismo.
             key.type == KeyType.SHIFT && shiftState == ShiftState.CAPS_LOCK -> palette.onAccent
             key.type == KeyType.SHIFT && shiftState == ShiftState.SHIFT -> palette.accentBright
+            key.type == KeyType.MIC && isSecureInput -> palette.disabled
             else -> palette.textPrimary
         }
     }

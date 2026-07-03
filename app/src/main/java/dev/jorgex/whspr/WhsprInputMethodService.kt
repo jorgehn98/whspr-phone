@@ -71,6 +71,7 @@ class WhsprInputMethodService : InputMethodService() {
             onMic = { toggleDictation() }
         }
         keyboardView = keyboard
+        keyboard.setSecureInput(isSecureInput)
 
         val wave = VoiceWaveView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
@@ -126,6 +127,7 @@ class WhsprInputMethodService : InputMethodService() {
         editorAction = EditorInfo.IME_ACTION_NONE
         noEnterAction = false
         transitionTo(DictationState.KEYBOARD)
+        keyboardView?.setSecureInput(false)
         super.onFinishInput()
     }
 
@@ -291,6 +293,7 @@ class WhsprInputMethodService : InputMethodService() {
         keyboard.setLanguage(settings.keyboardLanguage)
         keyboard.setPeriodSide(settings.periodSide)
         keyboard.setShowNumberRow(settings.showNumberRow)
+        keyboard.setSecureInput(isSecureInput)
     }
 
     private fun showMessage(messageRes: Int) {
