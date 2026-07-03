@@ -175,8 +175,20 @@ class WhsprInputMethodService : InputMethodService() {
         }
         dictationModelId = model.id
         recorder.onLevel = { level -> voiceWaveView?.setLevel(level) }
+        // Se invoca desde el hilo whspr-audio: saltar a main con post() antes de
+        // tocar estado/finishDictation (que llama a recorder.stop() -> worker?.join,
+        // y worker ES ese mismo hilo de audio: llamarlo síncronamente aquí bloquearía).
+        val session = inputSession
+        recorder.onAutoStop = {
+            mainHandler.post {
+                if (destroyed || session != inputSession) return@post
+                if (state != DictationState.RECORDING) return@post
+                finishDictation()
+            }
+        }
         if (!recorder.start()) {
             recorder.onLevel = null
+            recorder.onAutoStop = null
             dictationModelId = null
             showMessage(R.string.error_recording_failed)
             return
@@ -189,6 +201,7 @@ class WhsprInputMethodService : InputMethodService() {
         val sessionModelId = dictationModelId ?: settings.modelId
         val audioFile = recorder.stop()
         recorder.onLevel = null
+        recorder.onAutoStop = null
         transitionTo(DictationState.TRANSCRIBING)
         applyState()
         if (audioFile == null) {

@@ -32,6 +32,15 @@ class AudioRecorder(private val context: Context) {
     @Volatile
     var onLevel: ((Float) -> Unit)? = null
 
+    /**
+     * Se invoca EN EL HILO DE AUDIO (whspr-audio) cuando el propio recorder se
+     * auto-detiene al alcanzar MAX_PCM_BYTES (~60s). El consumidor decide si
+     * necesita saltar a otro hilo (p. ej. con Handler/post), igual que [onLevel].
+     * No se invoca en un stop()/discard() manual: solo ante el auto-stop interno.
+     */
+    @Volatile
+    var onAutoStop: (() -> Unit)? = null
+
     fun hasPermission(): Boolean {
         return context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
     }
@@ -96,13 +105,21 @@ class AudioRecorder(private val context: Context) {
                     val read = runCatching { recorder.read(buffer, 0, buffer.size) }.getOrDefault(0)
                     if (!recording || audioRecord !== recorder) break
                     if (read > 0) {
+                        var reachedLimit = false
                         synchronized(pcmLock) {
                             pcm.write(buffer, 0, read)
                             if (pcm.size() >= MAX_PCM_BYTES) {
                                 recording = false
+                                reachedLimit = true
                             }
                         }
                         runCatching { onLevel?.invoke(rmsLevel(buffer, read)) }
+                        // Fuera del lock: onAutoStop puede acabar llamando a stop(),
+                        // que hace worker?.join(1_000) sobre este mismo hilo si no
+                        // saltara a main thread primero (ver consumidor en el IME).
+                        if (reachedLimit) {
+                            runCatching { onAutoStop?.invoke() }
+                        }
                     } else {
                         recording = false
                     }
@@ -142,6 +159,7 @@ class AudioRecorder(private val context: Context) {
         if (!recording && audioRecord == null && worker == null) return null
         recording = false
         onLevel = null
+        onAutoStop = null
         audioRecord?.let { recorder ->
             runCatching {
                 if (recorder.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
