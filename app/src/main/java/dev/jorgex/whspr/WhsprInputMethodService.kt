@@ -291,7 +291,10 @@ class WhsprInputMethodService : InputMethodService() {
             return
         }
         connection.commitText(text, 1)
-        val beforeCursor = connection.getTextBeforeCursor(1, 0)
+        // .toString() fuerza comparación por contenido: algunos editores devuelven
+        // SpannableString/SpannableStringBuilder, que no sobrescriben equals() y
+        // comparan por identidad, provocando un espacio duplicado.
+        val beforeCursor = connection.getTextBeforeCursor(1, 0)?.toString()
         if (beforeCursor != " ") {
             connection.commitText(" ", 1)
         }
