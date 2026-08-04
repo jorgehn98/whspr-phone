@@ -7,9 +7,33 @@ Entrada de voz Android para **dictado 100% local**. Sin nube: descarga un modelo
 ![Platform](https://img.shields.io/badge/platform-Android%2028%2B-3DDC84)
 ![ABI](https://img.shields.io/badge/ABI-arm64--v8a-blue)
 
+## Qué resuelve
+
+Whspr convierte un teclado Android en una entrada de voz privada. Captura el audio desde el IME, lo normaliza a WAV de 16 kHz y ejecuta Whisper en el propio dispositivo. El texto se inserta en el campo activo sin enviar audio a servicios externos.
+
+## Arquitectura
+
+```text
+InputMethodService / RecognitionService
+            ↓
+       captura de audio
+            ↓
+      Kotlin → JNI/CMake
+            ↓
+ whisper.cpp (arm64, CPU-only)
+            ↓
+      texto en la aplicación
+```
+
+- Aplicación Android nativa en Kotlin, sin Compose ni AndroidX.
+- Motor `whisper.cpp` vendorizado y compilado para `arm64-v8a`.
+- Modelo descargado bajo demanda, validado con SHA-256 y almacenado de forma privada.
+- Caché nativa del modelo para evitar recargas entre dictados.
+- Dos integraciones del sistema: teclado completo (`InputMethodService`) y proveedor de reconocimiento (`RecognitionService`).
+
 ## Estado
 
-MVP inicial:
+Versión funcional en desarrollo activo:
 
 - App Android nativa en Kotlin.
 - `InputMethodService` registrado como entrada de voz del sistema.
