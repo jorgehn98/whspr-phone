@@ -119,20 +119,14 @@ Con Gradle Wrapper:
 ./gradlew :app:assembleRelease
 ```
 
-En Windows:
-
-```powershell
-.\gradlew.bat :app:assembleRelease
-```
-
 O con el script del proyecto:
 
-```powershell
-.\scripts\build-release.ps1
+```bash
+scripts/build-release.py
 ```
 
-Ese script ejecuta primero `.\scripts\check-static.ps1` y después comprueba el entorno Android.
-Al terminar también ejecuta `.\scripts\verify-apk.ps1` para confirmar que la APK release:
+Ese script ejecuta primero `scripts/check-static.py` y después comprueba el entorno Android.
+Al terminar también ejecuta `scripts/verify-apk.py` para confirmar que la APK release:
 
 - usa el package correcto;
 - declara solo permisos mínimos;
@@ -143,70 +137,70 @@ Al terminar también ejecuta `.\scripts\verify-apk.ps1` para confirmar que la AP
 
 Para compilar la APK ligera, instalar en un dispositivo conectado y abrir Whspr:
 
-```powershell
-.\scripts\install-release.ps1
+```bash
+scripts/install-release.py
 ```
 
-Ese script también ejecuta `.\scripts\verify-device.ps1` después de instalar y abre `MainActivity` con `am start -W`.
+Ese script también ejecuta `scripts/verify-device.py` después de instalar y abre `MainActivity` con `am start -W`.
 Para agilizar la prueba local por `adb`, también intenta conceder `RECORD_AUDIO`. Si el dispositivo lo bloquea, Whspr lo pedirá al abrir la app.
 
-Para desarrollo puedes seguir usando `.\scripts\build-debug.ps1` o `.\scripts\install-debug.ps1`, pero la APK recomendada para usar es `app-release.apk`: va minificada, sin modelos embebidos y firmada localmente con la debug key para poder instalarla por `adb`.
+Para desarrollo puedes seguir usando `scripts/build-debug.py` o `scripts/install-debug.py`, pero la APK recomendada para usar es `app-release.apk`: va minificada, sin modelos embebidos y firmada localmente con la debug key para poder instalarla por `adb`.
 
 Para verificar en el dispositivo que cumple API mínima, es `arm64-v8a` y que Android ve el IME y el proveedor de voz:
 
-```powershell
-.\scripts\verify-device.ps1
+```bash
+scripts/verify-device.py
 ```
 
-Ese check también informa del permiso de micrófono. `install-release.ps1` lo exige solo si pudo concederlo por `adb`; si no, abre Whspr para permitirlo manualmente.
+Ese check también informa del permiso de micrófono. `install-release.py` lo exige solo si pudo concederlo por `adb`; si no, abre Whspr para permitirlo manualmente.
 
 Si hay más de un dispositivo/emulador conectado:
 
-```powershell
-.\scripts\install-release.ps1 -Serial <adb-serial>
-.\scripts\verify-device.ps1 -Serial <adb-serial>
+```bash
+scripts/install-release.py --serial <adb-serial>
+scripts/verify-device.py --serial <adb-serial>
 ```
 
-Para comprobar rápido qué falta en Windows antes de compilar:
+Para comprobar rápido qué falta en Fedora/Linux antes de compilar:
 
-```powershell
-.\scripts\check-android-env.ps1
+```bash
+scripts/check-android-env.py
 ```
 
 Para pasar checks básicos que no necesitan Android Studio:
 
-```powershell
-.\scripts\check-static.ps1
+```bash
+scripts/check-static.py
 ```
 
-Comprueba balance simple de Kotlin/C++, XML válido, sintaxis PowerShell, strings/recursos, componentes y permisos mínimos, identidad de app/JNI, wiring de voz, contexto de atribución, support-check/model-download callback del dictado y guards de API modernos, catálogo de modelos, release minificada firmada localmente, versiones de build fijadas, build `arm64-v8a`, ausencia de dependencias extra, `.gitignore` Android correcto, ausencia de clientes directos de red/telemetría, retornos peligrosos en `synchronized` y referencias viejas del vendor.
+Comprueba balance simple de Kotlin/C++, XML válido, strings/recursos, componentes y permisos mínimos, identidad de app/JNI, wiring de voz, contexto de atribución, support-check/model-download callback del dictado y guards de API modernos, catálogo de modelos, release minificada firmada localmente, versiones de build fijadas, build `arm64-v8a`, ausencia de dependencias extra, `.gitignore` Android correcto, ausencia de clientes directos de red/telemetría, retornos peligrosos en `synchronized` y referencias viejas del vendor.
 
 Para inspeccionar la APK release ya generada:
 
-```powershell
-.\scripts\verify-apk.ps1
+```bash
+scripts/verify-apk.py
 ```
 
 Para comprobar manualmente que las URLs del catálogo de modelos siguen vivas y que el tamaño remoto cuadra:
 
-```powershell
-.\scripts\verify-model-catalog.ps1
+```bash
+scripts/verify-model-catalog.py
 ```
 
 Este check usa red, por eso no forma parte del build por defecto.
 
-En Windows, los scripts intentan usar primero `JAVA_HOME`/`java` y, si no existe, el Java incluido con Android Studio.
+Los scripts usan `JAVA_HOME` si está configurado y, en caso contrario, `java` del `PATH`.
 
 Si Android Studio no deja `ANDROID_HOME`, crea `local.properties` con:
 
 ```properties
-sdk.dir=C\:\\Users\\TU_USUARIO\\AppData\\Local\\Android\\Sdk
+sdk.dir=/home/TU_USUARIO/Android/Sdk
 ```
 
 O deja que el proyecto lo cree si encuentra el SDK:
 
-```powershell
-.\scripts\write-local-properties.ps1
+```bash
+scripts/write-local-properties.py
 ```
 
 Plan de prueba manual: `TEST_PLAN.md`.
@@ -214,7 +208,7 @@ Plan de prueba manual: `TEST_PLAN.md`.
 ## Contribuir
 
 Antes de tocar el código, lee `AGENTS.md`: stack, comandos e invariantes que no hay que romper.
-Ejecuta `.\scripts\check-static.ps1` antes de proponer cambios; es la verificación rápida del proyecto.
+Ejecuta `scripts/check-static.py` antes de proponer cambios; es la verificación rápida del proyecto.
 
 ## Licencia
 
