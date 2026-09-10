@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -11,7 +12,13 @@ REQUIRED_SDK = "36"
 
 
 def run(command: list[str], *, cwd: Path = ROOT, capture: bool = False, check: bool = True) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(command, cwd=cwd, text=True, capture_output=capture, check=check)
+    result = subprocess.run(command, cwd=cwd, text=True, capture_output=capture)
+    if check and result.returncode:
+        if capture:
+            print(result.stdout, end="", file=sys.stderr)
+            print(result.stderr, end="", file=sys.stderr)
+        result.check_returncode()
+    return result
 
 
 def read_local_sdk(root: Path = ROOT) -> Path | None:

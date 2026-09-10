@@ -1,8 +1,16 @@
+import subprocess
+import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr
+from io import StringIO
 from pathlib import Path
-import subprocess
-from scripts.common import adb_target, read_local_sdk, select_device
+from unittest.mock import patch
+
+from scripts.common import adb_target, read_local_sdk, run, select_device
+
+sys.path.insert(0, str(Path(__file__).parents[1]))
+from install import launch_failed
 
 
 class CommonTests(unittest.TestCase):
@@ -31,6 +39,18 @@ class CommonTests(unittest.TestCase):
         result = subprocess.run([str(script), "--help"], text=True, capture_output=True, check=True)
         self.assertIn("--serial", result.stdout)
         self.assertIn("--require-microphone", result.stdout)
+
+    def test_run_preserves_captured_command_diagnostic(self):
+        completed = subprocess.CompletedProcess(["adb"], 1, stdout="", stderr="device unauthorized\n")
+        diagnostic = StringIO()
+        with patch("scripts.common.subprocess.run", return_value=completed), redirect_stderr(diagnostic):
+            with self.assertRaises(subprocess.CalledProcessError):
+                run(["adb"], capture=True)
+        self.assertIn("device unauthorized", diagnostic.getvalue())
+
+    def test_launch_failure_checks_stderr(self):
+        self.assertTrue(launch_failed("Starting: Intent\n", "Error: Activity class does not exist\n"))
+        self.assertFalse(launch_failed("Status: ok\n", ""))
 
 
 if __name__ == "__main__":

@@ -10,6 +10,10 @@ from common import ROOT, adb_target, connected_devices, find_adb, run, select_de
 PACKAGE = "dev.jorgex.whspr"
 
 
+def launch_failed(stdout: str, stderr: str) -> bool:
+    return any(marker in stdout + stderr for marker in ("Error", "Exception", "Status: timeout"))
+
+
 def install(variant: str, serial: str | None) -> int:
     try:
         run([f"scripts/build-{variant}.py"], cwd=ROOT)
@@ -40,7 +44,8 @@ def install(variant: str, serial: str | None) -> int:
         print("\nOpening Whspr...")
         launch = run([*target, "shell", "am", "start", "-W", "-n", f"{PACKAGE}/.MainActivity"], capture=True)
         print(launch.stdout, end="")
-        if any(marker in launch.stdout for marker in ["Error", "Exception", "Status: timeout"]):
+        print(launch.stderr, end="", file=sys.stderr)
+        if launch_failed(launch.stdout, launch.stderr):
             return 1
         return 0
     except Exception as error:
