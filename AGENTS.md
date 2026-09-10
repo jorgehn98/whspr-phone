@@ -44,32 +44,33 @@ app/src/main/java/dev/jorgex/whspr/   # Kotlin
   Theme.kt                             # paleta monocroma (WhsprColors, WhsprPalette)
 app/src/main/cpp/native_whisper.cpp    # JNI + caché nativa del contexto whisper
 app/src/main/res/xml/                  # input_method, recognition_service, data_extraction_rules
-scripts/                               # build/install/verify (PowerShell, Windows)
+scripts/                               # build/install/verify (Python, Linux)
 third_party/whisper.cpp/               # vendor (MIT) — ver THIRD_PARTY_NOTICES.md
 ```
 
 ## Build / verificación
 
-Entorno: **Windows + PowerShell**. Rutas Windows, no asumir herramientas Unix.
+Entorno canónico: **Fedora/Linux + Python 3 estándar**.
 
 | Acción | Comando |
 | --- | --- |
-| Comprobar entorno Android | `.\scripts\check-android-env.ps1` |
-| Crear `local.properties` (SDK) | `.\scripts\write-local-properties.ps1` |
-| Checks estáticos (lint de facto) | `.\scripts\check-static.ps1` |
-| Build release (corre static + verify-apk) | `.\scripts\build-release.ps1` |
-| Build debug | `.\scripts\build-debug.ps1` |
-| Verificar APK ya generada | `.\scripts\verify-apk.ps1` |
-| Instalar release + verificar dispositivo | `.\scripts\install-release.ps1` |
-| Verificar dispositivo/registro Android | `.\scripts\verify-device.ps1` |
-| Validar catálogo remoto (usa red) | `.\scripts\verify-model-catalog.ps1` |
-| Gradle directo | `.\gradlew.bat :app:assembleRelease` |
+| Comprobar entorno Android | `scripts/check-android-env.py` |
+| Crear `local.properties` (SDK) | `scripts/write-local-properties.py` |
+| Checks estáticos (lint de facto) | `scripts/check-static.py` |
+| Tests de scripts | `python3 -m unittest discover -s scripts/tests -v` |
+| Build release (corre static + verify-apk) | `scripts/build-release.py` |
+| Build debug | `scripts/build-debug.py` |
+| Verificar APK ya generada | `scripts/verify-apk.py` |
+| Instalar release + verificar dispositivo | `scripts/install-release.py` |
+| Verificar dispositivo/registro Android | `scripts/verify-device.py` |
+| Validar catálogo remoto (usa red) | `scripts/verify-model-catalog.py` |
+| Gradle directo | `./gradlew :app:assembleRelease` |
 
-No hay framework de tests unitarios. La verificación automatizada es **`check-static.ps1`** (~41 checks
-regex, baratos y sin dependencias) + **`verify-apk.ps1`**. La verificación funcional real es manual:
-ver `TEST_PLAN.md` (requiere dispositivo arm64). Ejecuta `check-static.ps1` después de cualquier cambio.
+Los scripts usan `unittest` de la biblioteca estándar. La verificación automatizada es
+**`check-static.py`** (checks regex baratos y sin dependencias) + **`verify-apk.py`**. La verificación funcional real es manual:
+ver `TEST_PLAN.md` (requiere dispositivo arm64). Ejecuta `scripts/check-static.py` después de cualquier cambio.
 
-Si añades un invariante crítico, protégelo con un check regex barato en `check-static.ps1`; no construyas
+Si añades un invariante crítico, protégelo con un check regex barato en `check-static.py`; no construyas
 un analizador frágil ni dependencias nuevas.
 
 ## Invariantes que NO romper
@@ -81,7 +82,7 @@ un analizador frágil ni dependencias nuevas.
 - **Validación SHA-256** del modelo antes de transcribir; rechazar modelos parciales/corruptos.
 - **Guards de sesión**: no pegar texto si cambia el foco; no permitir cambio de teclado mientras graba/transcribe; no dictar en campos de contraseña.
 - **Atribución de micrófono** correcta (contexto) y liberar el micro al devolver resultado.
-- No dejar marcadores TODO/stale ni referencias viejas del vendor: `check-static.ps1` lo verifica.
+- No dejar marcadores TODO/stale ni referencias viejas del vendor: `scripts/check-static.py` lo verifica.
 
 ## Diseño
 

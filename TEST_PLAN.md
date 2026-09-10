@@ -4,16 +4,16 @@ Pruebas mínimas antes de dar la app por buena.
 
 ## Build
 
-1. Ejecutar en Windows:
+1. Ejecutar en Fedora/Linux:
 
-   ```powershell
-   .\scripts\check-android-env.ps1
+   ```bash
+   scripts/check-android-env.py
    ```
 
    Si falta solo la ruta del SDK y Android Studio está instalado:
 
-   ```powershell
-   .\scripts\write-local-properties.ps1
+   ```bash
+   scripts/write-local-properties.py
    ```
 
 2. Confirmar:
@@ -32,14 +32,14 @@ Pruebas mínimas antes de dar la app por buena.
 
    O con Gradle Wrapper:
 
-   ```powershell
-   .\gradlew.bat :app:assembleRelease
+   ```bash
+   ./gradlew :app:assembleRelease
    ```
 
    O directamente:
 
-   ```powershell
-   .\scripts\build-release.ps1
+   ```bash
+   scripts/build-release.py
    ```
 
    Debe terminar con:
@@ -50,8 +50,8 @@ Pruebas mínimas antes de dar la app por buena.
 
 4. Si quieres validar el catálogo remoto de modelos, ejecutar:
 
-   ```powershell
-   .\scripts\verify-model-catalog.ps1
+   ```bash
+   scripts/verify-model-catalog.py
    ```
 
    Debe confirmar que cada URL es HTTPS, responde por red y el tamaño remoto cumple `minBytes`.
@@ -61,20 +61,20 @@ Pruebas mínimas antes de dar la app por buena.
 1. Conectar un Android arm64 con depuración USB.
 2. Ejecutar:
 
-   ```powershell
-   .\scripts\install-release.ps1
+   ```bash
+   scripts/install-release.py
    ```
 
-   Si hay más de un dispositivo/emulador conectado, usar `-Serial <adb-serial>` o `ANDROID_SERIAL`.
+   Si hay más de un dispositivo/emulador conectado, usar `--serial <adb-serial>` o `ANDROID_SERIAL`.
 
 3. Verificar dispositivo y registro Android:
 
-   ```powershell
-   .\scripts\verify-device.ps1
+   ```bash
+   scripts/verify-device.py
    ```
 
    Debe confirmar API Android 28+, ABI `arm64-v8a`, IME registrado y `RecognitionService` registrado. El permiso de micrófono debe salir como `OK` si `adb` pudo concederlo, o como aviso para permitirlo manualmente.
-   `install-release.ps1` también debe abrir `MainActivity` con `am start -W` sin errores.
+   `install-release.py` también debe abrir `MainActivity` con `am start -W` sin errores.
 
 4. En Whspr, pulsar **Activar Whspr**.
 5. Habilitar `Whspr`.
