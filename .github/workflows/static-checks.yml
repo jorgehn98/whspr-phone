@@ -10,9 +10,8 @@ permissions:
 
 jobs:
   check-static:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - name: Run static checks
-        shell: pwsh
-        run: ./scripts/check-static.ps1
+        run: scripts/check-static.py
