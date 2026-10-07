@@ -40,6 +40,10 @@
     <string name="error_download_start_failed">No he podido empezar la descarga.</string>
     <string name="error_transcriber_not_ready">No he podido transcribir el audio.</string>
     <string name="error_commit_lost">No se pudo insertar el texto dictado.</string>
+    <string name="dictation_listening">Escuchando… toca para terminar</string>
+    <string name="dictation_transcribing">Transcribiendo…</string>
+    <string name="dictation_cancel">Cancelar</string>
+    <string name="dictation_finish_description">Terminar dictado</string>
     <string name="key_space">Espacio</string>
     <string name="key_shift_description">Mayúsculas</string>
     <string name="key_backspace_description">Borrar</string>

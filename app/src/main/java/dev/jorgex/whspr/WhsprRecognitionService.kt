@@ -22,11 +22,12 @@ class WhsprRecognitionService : RecognitionService() {
     private val lock = Any()
     private val settings by lazy { AppSettings(this) }
     private val modelStore by lazy { ModelStore(this) }
-    private val transcriber = LocalTranscriber()
+    private val transcriber by lazy { LocalTranscriber(modelStore) }
     private var recorder: AudioRecorder? = null
     private var currentCallback: Callback? = null
     private var currentLanguage = AppSettings.LANGUAGE_SPANISH
-    private var currentModelId: String? = null
+    private var currentModel: SpeechModel? = null
+    private var transcriptionToken = 0L
     private var processing = false
     private var recognitionSession = 0
     private val timeoutRunnable = Runnable {
@@ -57,7 +58,7 @@ class WhsprRecognitionService : RecognitionService() {
         recorder = sessionRecorder
         val model = ModelCatalog.byId(settings.modelId)
         synchronized(lock) {
-            currentModelId = model.id
+            currentModel = model
         }
         if (!sessionRecorder.hasPermission()) {
             fail(listener, SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS)
@@ -173,18 +174,21 @@ class WhsprRecognitionService : RecognitionService() {
 
     override fun onCancel(listener: Callback) {
         var shouldCancel = false
+        var cancelledToken = 0L
         synchronized(lock) {
             if (currentCallback === listener) {
                 recognitionSession += 1
                 currentCallback = null
-                currentModelId = null
+                currentModel = null
                 processing = false
                 shouldCancel = true
+                cancelledToken = transcriptionToken
             }
         }
         if (!shouldCancel) {
             return
         }
+        transcriber.cancel(cancelledToken)
         mainHandler.removeCallbacks(timeoutRunnable)
         discardRecorder()
     }
@@ -194,7 +198,7 @@ class WhsprRecognitionService : RecognitionService() {
         discardRecorder()
         synchronized(lock) {
             currentCallback = null
-            currentModelId = null
+            currentModel = null
             processing = false
             recognitionSession += 1
         }
@@ -227,53 +231,26 @@ class WhsprRecognitionService : RecognitionService() {
             }
             return
         }
-
-        val sessionModelId = synchronized(lock) {
-            currentModelId
-        } ?: settings.modelId
-        if (settings.modelId != sessionModelId) {
-            runCatching { audioFile.delete() }
-            fail(listener, SpeechRecognizer.ERROR_CLIENT)
-            return
-        }
-        val model = ModelCatalog.byId(sessionModelId)
-        val language = synchronized(lock) {
-            currentLanguage
+        val token = transcriber.newToken()
+        val model: SpeechModel
+        val language: String
+        synchronized(lock) {
+            transcriptionToken = token
+            model = currentModel ?: ModelCatalog.byId(settings.modelId)
+            language = currentLanguage
         }
         Thread({
-            var modelOk = false
-            var text: String? = null
-            var modelChanged = false
-            try {
-                runCatching {
-                    if (settings.modelId != sessionModelId) {
-                        modelChanged = true
-                        return@runCatching
-                    }
-                    modelOk = modelStore.hasExpectedSha256(model)
-                    if (!modelOk) {
-                        modelStore.delete(model)
-                    } else if (settings.modelId == sessionModelId) {
-                        text = transcriber.transcribe(audioFile, modelStore.fileFor(model), language)
-                    }
-                    if (settings.modelId != sessionModelId) {
-                        modelChanged = true
-                    }
-                }
-            } finally {
-                runCatching { audioFile.delete() }
-            }
+            val result = transcriber.transcribe(audioFile, model, language, token)
             complete(session) {
-                val finalText = text?.let(::stripNonVerbalTags)
-                when {
-                    modelChanged || !modelOk || finalText == null ->
-                        listener.error(SpeechRecognizer.ERROR_CLIENT)
-                    finalText.isBlank() ->
-                        listener.error(SpeechRecognizer.ERROR_NO_MATCH)
-                    else ->
+                when (result) {
+                    is DictationResult.Text ->
                         listener.results(Bundle().apply {
-                            putStringArrayList(RecognizerIntent.EXTRA_RESULTS, arrayListOf(finalText))
+                            putStringArrayList(RecognizerIntent.EXTRA_RESULTS, arrayListOf(result.text))
                         })
+                    DictationResult.NoSpeech ->
+                        listener.error(SpeechRecognizer.ERROR_NO_MATCH)
+                    DictationResult.InvalidModel, DictationResult.Failed ->
+                        listener.error(SpeechRecognizer.ERROR_CLIENT)
                 }
             }
         }, "whspr-recognition").start()
@@ -286,7 +263,7 @@ class WhsprRecognitionService : RecognitionService() {
     private fun fail(listener: Callback, error: Int) {
         synchronized(lock) {
             if (currentCallback === listener) currentCallback = null
-            currentModelId = null
+            currentModel = null
             recognitionSession += 1
             processing = false
         }
@@ -308,7 +285,7 @@ class WhsprRecognitionService : RecognitionService() {
             synchronized(lock) {
                 if (session == recognitionSession) {
                     currentCallback = null
-                    currentModelId = null
+                    currentModel = null
                     recognitionSession += 1
                     processing = false
                 }
