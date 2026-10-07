@@ -11,6 +11,7 @@ import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.LinearLayout
 import android.widget.Toast
 
@@ -27,6 +28,7 @@ class WhsprInputMethodService : InputMethodService() {
 
     private var state = DictationState.KEYBOARD
     private var isSecureInput = false
+    private var isProseInput = false
     private var editorAction = EditorInfo.IME_ACTION_NONE
     private var noEnterAction = false
     private var inputSession = 0
@@ -46,7 +48,7 @@ class WhsprInputMethodService : InputMethodService() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(8), dp(8), dp(8), dp(44))
+            setPadding(dp(4), dp(8), dp(4), dp(8))
             background = GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
                 intArrayOf(palette.backgroundTop, palette.background),
@@ -60,22 +62,31 @@ class WhsprInputMethodService : InputMethodService() {
             filterTouchesWhenObscured = true
         }
 
-        // Teclado y panel de dictado comparten la MISMA altura fija (KeyboardView.HEIGHT_DP):
+        // Teclado y panel de dictado comparten la MISMA altura (KeyboardView.heightDp):
         // alternar entre ellos (applyState) solo cambia qué vista es VISIBLE/GONE,
         // nunca el alto del contenedor del IME, para no dar un salto de layout a
         // la app de debajo.
         val keyboard = KeyboardView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(KeyboardView.HEIGHT_DP),
+                dp(KeyboardView.heightDp(this@WhsprInputMethodService)),
             )
             setLanguage(settings.keyboardLanguage)
             setPeriodSide(settings.periodSide)
             setShowNumberRow(settings.showNumberRow)
-            onText = { text -> currentInputConnection?.commitText(text, 1) }
-            onBackspace = { sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL) }
-            onEnter = { pressEnter() }
+            onText = { text -> typeText(text) }
+            onBackspace = {
+                sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
+                updateAutoShift()
+            }
+            onEnter = {
+                pressEnter()
+                updateAutoShift()
+            }
             onLanguageToggle = { toggleKeyboardLanguage() }
+            onSwitchKeyboard = {
+                (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).showInputMethodPicker()
+            }
             onMic = { toggleDictation() }
         }
         keyboardView = keyboard
@@ -84,7 +95,7 @@ class WhsprInputMethodService : InputMethodService() {
         val dictation = DictationView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(KeyboardView.HEIGHT_DP),
+                dp(KeyboardView.heightDp(this@WhsprInputMethodService)),
             )
             visibility = View.GONE
             onFinish = { toggleDictation() }
@@ -96,6 +107,33 @@ class WhsprInputMethodService : InputMethodService() {
         root.addView(keyboard)
         applyState()
         return root
+    }
+
+    private fun typeText(text: String) {
+        val connection = currentInputConnection ?: return
+        // Doble espacio tras una palabra: punto y espacio, como en el resto de teclados.
+        if (text == " " && isProseInput) {
+            val before = connection.getTextBeforeCursor(2, 0)
+            if (before != null && before.length == 2 && before[1] == ' ' && before[0].isLetterOrDigit()) {
+                connection.deleteSurroundingText(1, 0)
+                connection.commitText(". ", 1)
+                updateAutoShift()
+                return
+            }
+        }
+        connection.commitText(text, 1)
+        updateAutoShift()
+    }
+
+    /** Pide al editor si el cursor está donde toca mayúscula y lo refleja en SHIFT. */
+    private fun updateAutoShift() {
+        val inputType = currentInputEditorInfo?.inputType ?: InputType.TYPE_NULL
+        val caps = if (inputType and InputType.TYPE_MASK_CLASS == InputType.TYPE_CLASS_TEXT) {
+            currentInputConnection?.getCursorCapsMode(inputType) ?: 0
+        } else {
+            0
+        }
+        keyboardView?.setAutoShift(caps != 0)
     }
 
     private fun pressEnter() {
@@ -120,10 +158,36 @@ class WhsprInputMethodService : InputMethodService() {
         keyboardView?.dismissLongPressPopup()
         abandonDictation()
         isSecureInput = attribute?.let { isPasswordInput(it.inputType) } ?: false
+        isProseInput = attribute?.let { isProseInput(it.inputType) } ?: false
         editorAction = attribute?.imeOptions?.and(EditorInfo.IME_MASK_ACTION) ?: EditorInfo.IME_ACTION_NONE
         noEnterAction = (attribute?.imeOptions?.and(EditorInfo.IME_FLAG_NO_ENTER_ACTION) ?: 0) != 0
         refreshKeyboardSettings()
         applyState()
+    }
+
+    override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
+        super.onStartInputView(info, restarting)
+        if (!restarting) {
+            val inputClass = (info?.inputType ?: 0) and InputType.TYPE_MASK_CLASS
+            keyboardView?.resetForField(
+                numeric = inputClass == InputType.TYPE_CLASS_NUMBER ||
+                    inputClass == InputType.TYPE_CLASS_PHONE ||
+                    inputClass == InputType.TYPE_CLASS_DATETIME,
+            )
+        }
+        updateAutoShift()
+    }
+
+    override fun onUpdateSelection(
+        oldSelStart: Int,
+        oldSelEnd: Int,
+        newSelStart: Int,
+        newSelEnd: Int,
+        candidatesStart: Int,
+        candidatesEnd: Int,
+    ) {
+        super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
+        if (state == DictationState.KEYBOARD) updateAutoShift()
     }
 
     override fun onFinishInput() {
@@ -309,6 +373,7 @@ class WhsprInputMethodService : InputMethodService() {
         if (beforeCursor != " ") {
             connection.commitText(" ", 1)
         }
+        updateAutoShift()
     }
 
     /** Refleja [state] en las vistas: KEYBOARD/RECORDING/TRANSCRIBING intercambian teclado y panel. */
@@ -334,6 +399,18 @@ class WhsprInputMethodService : InputMethodService() {
                 variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
             InputType.TYPE_CLASS_NUMBER -> variation == InputType.TYPE_NUMBER_VARIATION_PASSWORD
             else -> false
+        }
+    }
+
+    /** Texto corriente: ni contraseñas ni URL/correo, donde el doble espacio no es un punto. */
+    private fun isProseInput(inputType: Int): Boolean {
+        if (inputType and InputType.TYPE_MASK_CLASS != InputType.TYPE_CLASS_TEXT) return false
+        if (isPasswordInput(inputType)) return false
+        return when (inputType and InputType.TYPE_MASK_VARIATION) {
+            InputType.TYPE_TEXT_VARIATION_URI,
+            InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
+            InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS -> false
+            else -> true
         }
     }
 
