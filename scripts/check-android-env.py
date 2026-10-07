@@ -20,6 +20,12 @@ def main() -> int:
         java = Path(found) if found else None
     if java:
         print(f"OK   java -> {java}")
+        # Gradle necesita un JDK completo: con solo el JRE falla tarde, al compilar.
+        if (java.resolve().parent / "javac").is_file():
+            print("OK   JDK (javac)")
+        else:
+            print("MISS JDK (javac) -> instala un JDK 17+ o apunta JAVA_HOME a uno")
+            missing += 1
         result = subprocess.run([str(java), "-version"], text=True, capture_output=True)
         match = re.search(r'version\s+"(?:1\.)?([0-9]+)', result.stderr + result.stdout)
         major = int(match.group(1)) if match else 0

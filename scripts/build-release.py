@@ -10,7 +10,7 @@ try:
     print()
     run(["scripts/check-android-env.py"], cwd=ROOT)
     print("\nBuilding Whspr release APK...")
-    run(["./gradlew", ":app:assembleRelease"], cwd=ROOT)
+    run(["./gradlew", ":app:lintRelease", ":app:assembleRelease"], cwd=ROOT)
     print()
     run(["scripts/verify-apk.py"], cwd=ROOT)
 except subprocess.CalledProcessError as error:

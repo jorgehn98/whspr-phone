@@ -119,7 +119,7 @@ object Languages {
 
     /** Auto primero, luego los idiomas ordenados alfabéticamente (locale es). */
     val all: List<Language> = run {
-        val collator = Collator.getInstance(Locale("es"))
+        val collator = Collator.getInstance(Locale.forLanguageTag("es"))
         listOf(auto) + languages.sortedWith { a, b -> collator.compare(a.name, b.name) }
     }
 

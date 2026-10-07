@@ -203,6 +203,19 @@ O deja que el proyecto lo cree si encuentra el SDK:
 scripts/write-local-properties.py
 ```
 
+### Firma de release
+
+Por defecto la release se firma con la debug key local, suficiente para instalar por `adb`. Esa clave es distinta en cada máquina: una APK compilada en otro equipo no actualiza una instalación previa.
+
+Para distribuir la app con una clave estable, crea `keystore.properties` en la raíz del proyecto (no se versiona) y el build lo usará automáticamente:
+
+```properties
+storeFile=/ruta/a/whspr-release.jks
+storePassword=...
+keyAlias=whspr
+keyPassword=...
+```
+
 Plan de prueba manual: `TEST_PLAN.md`.
 
 ## Contribuir
