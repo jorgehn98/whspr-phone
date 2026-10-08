@@ -94,18 +94,17 @@ std::mutex & transcribe_mutex() {
     return mutex;
 }
 
-// Cancelación por token: cada transcripción recibe un token creciente desde Kotlin y
-// cancelar marca como cancelados los tokens hasta ese. Así una cancelación nunca se pierde aunque
-// llegue mientras la transcripción aún espera el mutex, ni afecta a una posterior.
-std::atomic<int64_t> cancelled_up_to{0};
+// Cancelación por token: cada transcripción recibe un token único desde Kotlin y
+// cancelar apunta ese token aquí. Así la cancelación vale aunque llegue mientras la
+// transcripción aún espera el mutex, y no afecta a ninguna otra (el IME y el
+// RecognitionService comparten este motor).
+std::atomic<int64_t> cancelled_token{0};
 
 } // namespace
 
 extern "C" JNIEXPORT void JNICALL
 Java_dev_jorgex_whspr_NativeWhisper_cancelNative(JNIEnv *, jclass, jlong token) {
-    int64_t current = cancelled_up_to.load();
-    while (token > current && !cancelled_up_to.compare_exchange_weak(current, token)) {
-    }
+    cancelled_token.store(token);
 }
 
 // Libera el modelo cacheado si no hay una transcripción en curso (try_lock: nunca
@@ -116,7 +115,9 @@ Java_dev_jorgex_whspr_NativeWhisper_releaseNative(JNIEnv *, jclass) {
     if (lock.owns_lock()) free_context();
 }
 
-extern "C" JNIEXPORT jstring JNICALL
+// Devuelve el texto como bytes UTF-8: crear el String desde JNI exige "Modified UTF-8" y la
+// salida de Whisper puede traer secuencias de 4 bytes (emoji) que no lo son.
+extern "C" JNIEXPORT jbyteArray JNICALL
 Java_dev_jorgex_whspr_NativeWhisper_transcribeNative(
     JNIEnv * env,
     jclass,
@@ -126,7 +127,7 @@ Java_dev_jorgex_whspr_NativeWhisper_transcribeNative(
     jlong token
 ) {
     std::lock_guard<std::mutex> lock(transcribe_mutex());
-    if (token <= cancelled_up_to.load()) return nullptr;
+    if (token == cancelled_token.load()) return nullptr;
 
     const std::string model = jstring_to_string(env, model_path);
     const std::string lang = jstring_to_string(env, language);
@@ -162,28 +163,29 @@ Java_dev_jorgex_whspr_NativeWhisper_transcribeNative(
     params.suppress_nst = true;
     int64_t request_token = token;
     params.abort_callback = [](void * data) {
-        return *static_cast<int64_t *>(data) <= cancelled_up_to.load();
+        return *static_cast<int64_t *>(data) == cancelled_token.load();
     };
     params.abort_callback_user_data = &request_token;
 
-    if (lang == "auto") {
-        params.detect_language = true;
-        params.language = "auto";
-    } else {
-        params.detect_language = false;
-        params.language = lang.c_str();
-    }
+    // "auto" hace que whisper detecte el idioma y siga transcribiendo. No usar
+    // detect_language: con ese flag whisper_full termina tras detectar, sin texto.
+    params.detect_language = false;
+    params.language = lang.c_str();
 
     std::string text;
     if (whisper_full(context, params, pcm.data(), static_cast<int>(pcm.size())) != 0) {
         return nullptr;
     }
-    if (token <= cancelled_up_to.load()) return nullptr;
+    if (token == cancelled_token.load()) return nullptr;
     const int segments = whisper_full_n_segments(context);
     for (int i = 0; i < segments; ++i) {
         const char * segment = whisper_full_get_segment_text(context, i);
         if (segment != nullptr) text += segment;
     }
 
-    return env->NewStringUTF(text.c_str());
+    const auto length = static_cast<jsize>(text.size());
+    jbyteArray result = env->NewByteArray(length);
+    if (result == nullptr) return nullptr;
+    env->SetByteArrayRegion(result, 0, length, reinterpret_cast<const jbyte *>(text.data()));
+    return result;
 }

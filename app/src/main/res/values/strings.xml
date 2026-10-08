@@ -39,6 +39,7 @@
     <string name="microphone_allowed">Micrófono permitido</string>
     <string name="download_model">Descargar modelo</string>
     <string name="model_downloaded">Modelo descargado</string>
+    <string name="download_title">Modelo Whspr (%1$s)</string>
     <string name="download_description">Descargando modelo local de Whspr</string>
     <string name="enable_keyboard">Activar el teclado Whspr</string>
     <string name="switch_keyboard">Elegir Whspr como teclado</string>
