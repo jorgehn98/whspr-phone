@@ -1,5 +1,6 @@
 package dev.jorgex.whspr
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Typeface
@@ -406,6 +407,7 @@ class KeyboardView @JvmOverloads constructor(
 
     // --- Repetición de BACKSPACE al mantener pulsado ---
 
+    @SuppressLint("ClickableViewAccessibility") // devuelve false: el click normal sigue su curso
     private fun attachRepeat(keyView: View) {
         keyView.setOnTouchListener { _, event ->
             when (event.action) {

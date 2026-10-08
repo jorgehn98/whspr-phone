@@ -74,7 +74,7 @@ lógica). Características:
 
 ### Icono de la app (launcher)
 
-Adaptive icon vectorial (`mipmap-anydpi-v26` + drawables), derivado del
+Adaptive icon vectorial (`mipmap-anydpi` + drawables), derivado del
 visualizador de voz: 9 barras verticales blancas (`#FFFFFF`) con la envolvente
 simétrica del modo RECORDING, sobre fondo carbón `#0E0E10` (token `background`
 oscuro). Menos barras que `VoiceWaveView` (9 frente a 19) a propósito: a tamaño

@@ -184,13 +184,14 @@ def main() -> int:
     check("CPU-only native flags", cpu_only)
     check("minimal dependencies", dependencies_ok and cpu_only and 'abiFilters.add("arm64-v8a")' in build)
     proguard = ROOT / "app/proguard-rules.pro"
-    check("signed minified release build", contains_all(app_build, [r"release\s*\{", r'signingConfig = signingConfigs\.getByName\("debug"\)', r"isMinifyEnabled = true", r"isShrinkResources = true", r"proguard-rules\.pro"]) and proguard.is_file() and "NativeWhisper" in proguard.read_text(encoding="utf-8"))
+    check("signed minified release build", contains_all(app_build, [r"release\s*\{", r'signingConfig = signingConfigs\.findByName\("release"\) \?: signingConfigs\.getByName\("debug"\)', r'rootProject\.file\("keystore\.properties"\)', r"isMinifyEnabled = true", r"isShrinkResources = true", r"proguard-rules\.pro"]) and proguard.is_file() and "NativeWhisper" in proguard.read_text(encoding="utf-8"))
     wrapper = text("gradle/wrapper/gradle-wrapper.properties")
     expected_versions = ['compileSdk = 36', 'targetSdk = 36', 'minSdk = 28', 'ndkVersion = "28.2.13676358"', 'id("com.android.application") version "9.2.0"', 'sourceCompatibility = JavaVersion.VERSION_17', 'targetCompatibility = JavaVersion.VERSION_17', 'gradle-9.4.1-bin.zip', 'distributionSha256Sum=2ab2958f2a1e51120c326cad6f385153bb11ee93b3c216c5fccebfdfbb7ec6cb']
     check("pinned build versions", all(value in build + wrapper for value in expected_versions))
+    check("lint gate", contains_all(app_build, [r"warningsAsErrors = true", r"abortOnError = true"]) and ":app:lintRelease" in scripts.get("build-release.py", ""))
     check("AGP 9 built-in Kotlin", "org.jetbrains.kotlin.android" not in build)
     gitignore = text(".gitignore")
-    check("gitignore Android outputs", all(value in gitignore for value in [".gradle/", "build/", "app/build/", "app/.cxx/", "local.properties", ".idea/"]))
+    check("gitignore Android outputs", all(value in gitignore for value in [".gradle/", "build/", "app/build/", "app/.cxx/", "local.properties", ".idea/", "keystore.properties", "*.jks", "*.keystore"]))
     direct_network = re.compile(r"OkHttp|Retrofit|HttpURLConnection|java\.net\.URL|java\.net\.Socket|DatagramSocket|Firebase|Analytics|Crashlytics|Telemetry")
     check("no direct network or telemetry clients", all(not direct_network.search(path.read_text(encoding="utf-8")) for path in kotlin_files))
     package = "dev.jorgex.whspr"
