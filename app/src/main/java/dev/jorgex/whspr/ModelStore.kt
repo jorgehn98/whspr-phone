@@ -118,6 +118,24 @@ class ModelStore(private val context: Context) {
         }
     }
 
+    /** Porcentaje descargado (0..100), o null si el sistema aún no conoce el tamaño total. */
+    fun downloadPercent(downloadId: Long): Int? {
+        if (downloadId <= 0L) return null
+        val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val cursor = runCatching {
+            manager.query(DownloadManager.Query().setFilterById(downloadId))
+        }.getOrNull() ?: return null
+        cursor.use {
+            if (!it.moveToFirst()) return null
+            val doneIndex = it.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
+            val totalIndex = it.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
+            if (doneIndex < 0 || totalIndex < 0) return null
+            val total = it.getLong(totalIndex)
+            if (total <= 0L) return null
+            return (it.getLong(doneIndex) * 100 / total).toInt().coerceIn(0, 100)
+        }
+    }
+
     /**
      * Estado del modelo seleccionado resolviendo la descarga pendiente: aplica las
      * limpiezas (registro pendiente, archivo no utilizable) una sola vez. [usable]

@@ -1,7 +1,7 @@
 package dev.jorgex.whspr
 
 import android.app.Activity
-import android.graphics.Typeface
+import android.app.AlertDialog
 import android.os.Bundle
 import android.view.Gravity
 import android.widget.Button
@@ -10,11 +10,9 @@ import android.widget.ScrollView
 import android.widget.TextView
 
 /**
- * Pantalla secundaria de ajustes del teclado ("Más ajustes"), accesible desde
- * MainActivity. Views a mano, sin Compose/AndroidX, mismos tokens y patrones
- * que MainActivity. Preparada para más secciones a futuro: por ahora solo
- * "Teclado" con los ajustes movidos de MainActivity (posición del punto,
- * fila de números).
+ * Pantalla secundaria ("Más ajustes"), accesible desde MainActivity: ajustes del
+ * teclado (posición del punto, fila de números) y la sección "Acerca de" con las
+ * licencias de terceros. Views a mano, sin Compose/AndroidX.
  */
 class SettingsActivity : Activity() {
     private lateinit var settings: AppSettings
@@ -37,6 +35,13 @@ class SettingsActivity : Activity() {
             setOnClickListener { showNumberRowPicker() }
         }
 
+        val licensesButton = Button(this).apply {
+            text = getString(R.string.third_party_licenses)
+            setOnClickListener { showLicenses() }
+        }
+        val version = packageManager.getPackageInfo(packageName, 0).versionName
+        val aboutHeader = sectionHeader(R.string.section_about)
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
@@ -46,11 +51,22 @@ class SettingsActivity : Activity() {
             addView(keyboardHeader)
             addView(periodSideButton)
             addView(showNumberRowButton)
+            addView(aboutHeader)
+            addView(licensesButton)
+            addView(
+                TextView(this@SettingsActivity).apply {
+                    text = getString(R.string.about_version, version)
+                    textSize = 13f
+                    gravity = Gravity.CENTER
+                    setTextColor(WhsprColors.forContext(this@SettingsActivity).textMuted)
+                    setPadding(0, dp(16), 0, 0)
+                },
+            )
         }
 
         val palette = WhsprColors.forContext(this)
         root.setBackgroundColor(palette.background)
-        listOf(periodSideButton, showNumberRowButton).forEach { styleButton(it) }
+        listOf(periodSideButton, showNumberRowButton, licensesButton).forEach { styleButton(it) }
 
         setContentView(
             ScrollView(this).apply {
@@ -66,20 +82,13 @@ class SettingsActivity : Activity() {
         refreshStatus()
     }
 
-    private fun sectionHeader(textRes: Int): TextView {
-        val palette = WhsprColors.forContext(this)
-        return TextView(this).apply {
-            text = getString(textRes)
-            textSize = 14f
-            setTypeface(typeface, Typeface.BOLD)
-            setTextColor(palette.textMuted)
-            val params = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            )
-            params.setMargins(0, dp(8), 0, dp(4))
-            layoutParams = params
-        }
+    private fun showLicenses() {
+        val notices = resources.openRawResource(R.raw.third_party_licenses).bufferedReader().use { it.readText() }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.third_party_licenses)
+            .setMessage(notices)
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
     }
 
     private fun styleButton(button: Button) {

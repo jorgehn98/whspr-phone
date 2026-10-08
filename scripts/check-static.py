@@ -82,7 +82,7 @@ def main() -> int:
     for path in (ROOT / "app/src/main").rglob("*"):
         if path.suffix not in {".xml", ".kt"}:
             continue
-        for first, second in re.findall(r"@string/([A-Za-z0-9_]+)|R\.string\.([A-Za-z0-9_]+)", path.read_text(encoding="utf-8")):
+        for first, second in re.findall(r"@string/([A-Za-z0-9_]+)|(?<!android\.)R\.string\.([A-Za-z0-9_]+)", path.read_text(encoding="utf-8")):
             name = first or second
             if name not in names:
                 missing_strings.append((path, name))

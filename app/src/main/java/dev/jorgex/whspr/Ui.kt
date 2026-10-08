@@ -6,6 +6,9 @@ import android.content.res.ColorStateList
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
+import android.graphics.Typeface
+import android.widget.LinearLayout
+import android.widget.TextView
 
 /** Convierte dp a píxeles según la densidad de pantalla. */
 fun Context.dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
@@ -72,4 +75,21 @@ fun Context.defaultButtonTextColors(): ColorStateList {
     )
     val colors = intArrayOf(palette.textPrimary, palette.textMuted)
     return ColorStateList(states, colors)
+}
+
+/** Encabezado de sección de las pantallas de la app (MainActivity y SettingsActivity). */
+fun Context.sectionHeader(textRes: Int): TextView {
+    val palette = WhsprColors.forContext(this)
+    return TextView(this).apply {
+        text = getString(textRes)
+        textSize = 14f
+        setTypeface(typeface, Typeface.BOLD)
+        setTextColor(palette.textMuted)
+        val params = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+        )
+        params.setMargins(0, dp(24), 0, dp(4))
+        layoutParams = params
+    }
 }
