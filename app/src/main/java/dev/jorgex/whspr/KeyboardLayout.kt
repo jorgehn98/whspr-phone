@@ -74,18 +74,20 @@ object KeyboardLayouts {
     // Las teclas con icono propio (SHIFT, BACKSPACE, GLOBE, MIC, ENTER) llevan
     // label vacío: KeyboardView decide el render (icono vectorial tintado) por
     // KeyType, no por texto. contentDescription cubre la accesibilidad.
-    // El punto (con long-press de coma en ambos lados) va a la izquierda o
-    // derecha del espacio según AppSettings.periodSide.
+    // Punto y coma flanquean el espacio; AppSettings.periodSide decide en qué lado
+    // va el punto y la coma ocupa el contrario. El resto de puntuación frecuente
+    // sale en el long-press del punto.
     private fun bottomRow(firstLabel: String, firstType: KeyType, periodSide: PeriodSide): List<Key> {
         val first = Key(label = firstLabel, type = firstType, weight = 1.5f)
-        val globe = Key(label = "", type = KeyType.GLOBE, weight = 1.5f)
-        val space = Key(label = " ", type = KeyType.SPACE, weight = 4f)
-        val period = Key(label = ".", type = KeyType.PERIOD, weight = 1f, longPress = listOf(","))
-        val mic = Key(label = "", type = KeyType.MIC, weight = 1.5f)
+        val globe = Key(label = "", type = KeyType.GLOBE, weight = 1.2f)
+        val space = Key(label = " ", type = KeyType.SPACE, weight = 3.4f)
+        val period = Key(label = ".", type = KeyType.PERIOD, longPress = listOf("?", "!", "¿", "¡", ":", ";"))
+        val comma = charKey(",")
+        val mic = Key(label = "", type = KeyType.MIC, weight = 1.4f)
         val enter = Key(label = "", type = KeyType.ENTER, weight = 1.5f)
         return when (periodSide) {
-            PeriodSide.LEFT -> listOf(first, globe, period, space, mic, enter)
-            PeriodSide.RIGHT -> listOf(first, globe, space, period, mic, enter)
+            PeriodSide.LEFT -> listOf(first, globe, period, space, comma, mic, enter)
+            PeriodSide.RIGHT -> listOf(first, globe, comma, space, period, mic, enter)
         }
     }
 
@@ -104,7 +106,6 @@ object KeyboardLayouts {
             listOf("a", "s", "d", "f", "g", "h", "j", "k", "l", "ñ").map {
                 when (it) {
                     "a" -> charKey(it, listOf("á", "à", "ä", "â", "ã"))
-                    "c" -> charKey(it, listOf("ç"))
                     else -> charKey(it)
                 }
             },
@@ -154,7 +155,7 @@ object KeyboardLayouts {
             listOf("+", "×", "÷", "=", "/", "_", "<", ">", "[", "]").map { charKey(it) },
             listOf("!", "@", "#", "€", "%", "^", "&", "*", "(", ")").map { charKey(it) },
             listOf(Key(label = "1/2", type = KeyType.LAYER_PAGE, weight = 1.5f)) +
-                listOf("-", "'", "\"", ":", ";", ",", "?").map { charKey(it) } +
+                listOf("-", "'", "\"", ":", ";", "¿", "?").map { charKey(it) } +
                 listOf(Key(label = "", type = KeyType.BACKSPACE, weight = 1.5f)),
             bottomRow(firstLabel = "ABC", firstType = KeyType.LAYER_ABC, periodSide = periodSide),
         ),

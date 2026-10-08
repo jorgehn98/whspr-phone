@@ -174,6 +174,9 @@ def main() -> int:
     es_keys = ",".join(base_rows.findall(es.group(1))) if es else ""
     en_keys = ",".join(base_rows.findall(en.group(1))) if en else ""
     check("keyboard layout language layers", '"ñ"' in es_keys and '"ñ"' not in en_keys)
+    keyboard_view = text("app/src/main/java/dev/jorgex/whspr/KeyboardView.kt")
+    check("keyboard touch routing", contains_all(keyboard_view, [r"override fun onInterceptTouchEvent\(event: MotionEvent\): Boolean = true", r"private fun keyAt\(", r"private fun releaseAll\(\)"]) and re.search(r"private fun render\(\) \{[^}]*?releaseAll\(\)", keyboard_view, re.DOTALL) is not None)
+    check("auto-capitalization from editor", contains_all(ime, [r"getCursorCapsMode\(inputType\)", r"override fun onUpdateSelection"]) and "fun setAutoShift(wanted: Boolean)" in keyboard_view)
     check("recognition service UI decoupling", "onLevel" not in recognition)
 
     root_build = text("build.gradle.kts")
