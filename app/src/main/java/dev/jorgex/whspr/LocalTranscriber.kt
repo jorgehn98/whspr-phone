@@ -11,7 +11,7 @@ sealed class DictationResult {
     /** El audio no contenía habla: no hay nada que insertar y no es un error. */
     object NoSpeech : DictationResult()
 
-    /** El modelo en disco no supera la validación SHA-256 y se ha borrado. */
+    /** No hay modelo instalado, o no superaba la validación SHA-256 y se ha borrado. */
     object InvalidModel : DictationResult()
 
     /** Fallo del motor o transcripción cancelada. */
@@ -31,9 +31,10 @@ class LocalTranscriber(private val modelStore: ModelStore) {
 
     /** Bloqueante: llamar fuera del hilo principal. [samples] es audio 16 kHz mono PCM16. */
     fun transcribe(samples: ShortArray, model: SpeechModel, language: String, token: Long): DictationResult {
-        if (!modelStore.hasExpectedSha256(model)) {
-            modelStore.delete(model)
-            return DictationResult.InvalidModel
+        when (modelStore.validate(model)) {
+            ModelValidity.Valid -> Unit
+            ModelValidity.Missing, ModelValidity.Corrupt -> return DictationResult.InvalidModel
+            ModelValidity.Unreadable -> return DictationResult.Failed
         }
         val raw = runCatching {
             NativeWhisper.transcribe(samples, modelStore.fileFor(model).absolutePath, language, token)
@@ -58,7 +59,7 @@ object NativeWhisper {
         if (!available) return null
         mainHandler.removeCallbacks(releaseRunnable)
         try {
-            return transcribeNative(samples, modelPath, language, token)?.trim()
+            return transcribeNative(samples, modelPath, language, token)?.toString(Charsets.UTF_8)?.trim()
         } finally {
             // El modelo cargado ocupa decenas o cientos de MB: se suelta tras un rato
             // sin dictar en vez de retenerlo mientras viva el proceso del teclado.
@@ -72,7 +73,7 @@ object NativeWhisper {
     }
 
     @JvmStatic
-    private external fun transcribeNative(samples: ShortArray, modelPath: String, language: String, token: Long): String?
+    private external fun transcribeNative(samples: ShortArray, modelPath: String, language: String, token: Long): ByteArray?
 
     @JvmStatic
     private external fun cancelNative(token: Long)

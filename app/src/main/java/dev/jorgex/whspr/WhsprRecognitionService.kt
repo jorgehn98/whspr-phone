@@ -53,7 +53,6 @@ class WhsprRecognitionService : RecognitionService() {
         // silencio, por límite de duración o por error, y aquí se cierra la escucha.
         val sessionRecorder = AudioRecorder(recordingContext(listener), endOnSilence = true)
         sessionRecorder.onAutoStop = { mainHandler.post { finishListening(listener) } }
-        sessionRecorder.onLevel = { level -> notifyClient { listener.rmsChanged(level * MAX_RMS_DB) } }
         recorder = sessionRecorder
         val model = ModelCatalog.byId(settings.modelId)
         synchronized(lock) {
@@ -63,7 +62,7 @@ class WhsprRecognitionService : RecognitionService() {
             fail(listener, SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS)
             return
         }
-        if (!modelReady(model)) {
+        if (!modelStore.isInstalled(model)) {
             fail(listener, SpeechRecognizer.ERROR_CLIENT)
             return
         }
@@ -78,7 +77,10 @@ class WhsprRecognitionService : RecognitionService() {
         }
         if (!clientReady) {
             onCancel(listener)
+            return
         }
+        // Niveles solo entre readyForSpeech y endOfSpeech, como espera el cliente.
+        sessionRecorder.onLevel = { level -> notifyClient { listener.rmsChanged(level * MAX_RMS_DB) } }
     }
 
     override fun onStopListening(listener: Callback) {
@@ -105,7 +107,7 @@ class WhsprRecognitionService : RecognitionService() {
     @TargetApi(Build.VERSION_CODES.TIRAMISU)
     private fun reportRecognitionSupport(supportCallback: SupportCallback) {
         val model = ModelCatalog.byId(settings.modelId)
-        if (!modelStore.isReady(model)) {
+        if (!modelStore.isInstalled(model)) {
             notifyClient {
                 supportCallback.onError(SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE)
             }
@@ -123,52 +125,19 @@ class WhsprRecognitionService : RecognitionService() {
         }
     }
 
-    @TargetApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
-    override fun onTriggerModelDownload(
-        recognizerIntent: Intent,
-        attributionSource: AttributionSource,
-    ) {
-        scheduleModelDownload()
-    }
-
-    @TargetApi(Build.VERSION_CODES.TIRAMISU)
-    override fun onTriggerModelDownload(recognizerIntent: Intent) {
-        scheduleModelDownload()
-    }
-
+    // El modelo solo se descarga desde la app, con el usuario delante: cualquier app
+    // puede llamar aquí y no debe poder gastar datos ni almacenamiento ajenos. Las
+    // variantes sin listener se quedan con la implementación base (no hacen nada).
     @TargetApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
     override fun onTriggerModelDownload(
         recognizerIntent: Intent,
         attributionSource: AttributionSource,
         listener: ModelDownloadListener,
     ) {
-        val model = ModelCatalog.byId(settings.modelId)
+        val installed = modelStore.isInstalled(ModelCatalog.byId(settings.modelId))
         notifyClient {
-            if (modelStore.isReady(model)) {
-                listener.onSuccess()
-            } else if (scheduleModelDownload()) {
-                listener.onScheduled()
-            } else {
-                listener.onError(SpeechRecognizer.ERROR_NETWORK)
-            }
+            if (installed) listener.onSuccess() else listener.onError(SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE)
         }
-    }
-
-    private fun scheduleModelDownload(): Boolean {
-        val model = ModelCatalog.byId(settings.modelId)
-        if (modelStore.isReady(model)) return true
-        if (settings.pendingModelId == model.id &&
-            modelStore.downloadStatus(settings.pendingDownloadId) == ModelDownloadStatus.Running
-        ) {
-            return true
-        }
-
-        modelStore.deleteUnready(model)
-        val downloadId = modelStore.download(model)
-        if (downloadId <= 0L) return false
-        settings.pendingModelId = model.id
-        settings.pendingDownloadId = downloadId
-        return true
     }
 
     override fun onCancel(listener: Callback) {
@@ -194,6 +163,7 @@ class WhsprRecognitionService : RecognitionService() {
     override fun onDestroy() {
         discardRecorder()
         synchronized(lock) {
+            transcriber.cancel(transcriptionToken)
             currentCallback = null
             currentModel = null
             processing = false
@@ -216,6 +186,7 @@ class WhsprRecognitionService : RecognitionService() {
         if (!shouldFinish) {
             return
         }
+        recorder?.onLevel = null
         notifyClient {
             listener.endOfSpeech()
         }
@@ -251,10 +222,6 @@ class WhsprRecognitionService : RecognitionService() {
                 }
             }
         }, "whspr-recognition").start()
-    }
-
-    private fun modelReady(model: SpeechModel): Boolean {
-        return modelStore.resolveStatus(settings, model) { modelStore.isDownloaded(model) } == ModelStatus.Ready
     }
 
     private fun fail(listener: Callback, error: Int) {

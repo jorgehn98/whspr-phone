@@ -1,7 +1,6 @@
 package dev.jorgex.whspr
 
 import android.content.Intent
-import android.content.res.Configuration
 import android.graphics.drawable.GradientDrawable
 import android.inputmethodservice.InputMethodService
 import android.os.Handler
@@ -29,6 +28,7 @@ class WhsprInputMethodService : InputMethodService() {
     private var state = DictationState.KEYBOARD
     private var isSecureInput = false
     private var isProseInput = false
+    private var spaceJustTyped = false
     private var editorAction = EditorInfo.IME_ACTION_NONE
     private var noEnterAction = false
     private var inputSession = 0
@@ -77,10 +77,12 @@ class WhsprInputMethodService : InputMethodService() {
             onText = { text -> typeText(text) }
             onBackspace = {
                 sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
+                spaceJustTyped = false
                 updateAutoShift()
             }
             onEnter = {
                 pressEnter()
+                spaceJustTyped = false
                 updateAutoShift()
             }
             onLanguageToggle = { toggleKeyboardLanguage() }
@@ -91,6 +93,9 @@ class WhsprInputMethodService : InputMethodService() {
         }
         keyboardView = keyboard
         keyboard.setSecureInput(isSecureInput)
+        // La vista se recrea en cada cambio de configuración (rotación, modo oscuro)
+        // sin que cambie el campo: arranca en la capa que le corresponde.
+        keyboard.resetForField(isNumericInput(currentInputEditorInfo))
 
         val dictation = DictationView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
@@ -112,16 +117,20 @@ class WhsprInputMethodService : InputMethodService() {
     private fun typeText(text: String) {
         val connection = currentInputConnection ?: return
         // Doble espacio tras una palabra: punto y espacio, como en el resto de teclados.
-        if (text == " " && isProseInput) {
+        // Solo si el espacio anterior lo acaba de teclear el usuario: un espacio que ya
+        // estaba en el texto (o el que deja un dictado) no cuenta.
+        if (text == " " && spaceJustTyped && isProseInput) {
             val before = connection.getTextBeforeCursor(2, 0)
             if (before != null && before.length == 2 && before[1] == ' ' && before[0].isLetterOrDigit()) {
                 connection.deleteSurroundingText(1, 0)
                 connection.commitText(". ", 1)
+                spaceJustTyped = false
                 updateAutoShift()
                 return
             }
         }
         connection.commitText(text, 1)
+        spaceJustTyped = text == " "
         updateAutoShift()
     }
 
@@ -156,7 +165,10 @@ class WhsprInputMethodService : InputMethodService() {
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
         keyboardView?.dismissLongPressPopup()
-        abandonDictation()
+        // restarting = mismo campo (rotación, o la app reinicia su entrada): el dictado
+        // en curso sigue siendo para ese campo. Con un campo nuevo, se abandona.
+        if (!restarting) abandonDictation()
+        spaceJustTyped = false
         isSecureInput = attribute?.let { isPasswordInput(it.inputType) } ?: false
         isProseInput = attribute?.let { isProseInput(it.inputType) } ?: false
         editorAction = attribute?.imeOptions?.and(EditorInfo.IME_MASK_ACTION) ?: EditorInfo.IME_ACTION_NONE
@@ -167,15 +179,15 @@ class WhsprInputMethodService : InputMethodService() {
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
-        if (!restarting) {
-            val inputClass = (info?.inputType ?: 0) and InputType.TYPE_MASK_CLASS
-            keyboardView?.resetForField(
-                numeric = inputClass == InputType.TYPE_CLASS_NUMBER ||
-                    inputClass == InputType.TYPE_CLASS_PHONE ||
-                    inputClass == InputType.TYPE_CLASS_DATETIME,
-            )
-        }
+        if (!restarting) keyboardView?.resetForField(isNumericInput(info))
         updateAutoShift()
+    }
+
+    private fun isNumericInput(info: EditorInfo?): Boolean {
+        val inputClass = (info?.inputType ?: 0) and InputType.TYPE_MASK_CLASS
+        return inputClass == InputType.TYPE_CLASS_NUMBER ||
+            inputClass == InputType.TYPE_CLASS_PHONE ||
+            inputClass == InputType.TYPE_CLASS_DATETIME
     }
 
     override fun onUpdateSelection(
@@ -217,13 +229,6 @@ class WhsprInputMethodService : InputMethodService() {
         super.onDestroy()
     }
 
-    override fun onConfigurationChanged(newConfig: Configuration) {
-        super.onConfigurationChanged(newConfig)
-        if (keyboardView != null) {
-            setInputView(onCreateInputView())
-        }
-    }
-
     // --- Máquina de estados del dictado ---
 
     private fun toggleDictation() {
@@ -245,7 +250,7 @@ class WhsprInputMethodService : InputMethodService() {
             openSettings()
             return
         }
-        if (modelStore.resolveStatus(settings, model) { modelStore.isDownloaded(model) } != ModelStatus.Ready) {
+        if (!modelStore.isInstalled(model)) {
             showMessage(R.string.error_missing_model)
             openSettings()
             return
@@ -373,6 +378,7 @@ class WhsprInputMethodService : InputMethodService() {
         if (beforeCursor != " ") {
             connection.commitText(" ", 1)
         }
+        spaceJustTyped = false
         updateAutoShift()
     }
 

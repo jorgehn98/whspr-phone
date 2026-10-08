@@ -93,6 +93,8 @@ class MainActivity : Activity() {
         }.apply { text = getString(R.string.more_settings) }
 
         val tryField = EditText(this).apply {
+            // Con id, Android conserva el texto al recrear la pantalla (rotación, modo oscuro).
+            id = R.id.try_field
             hint = getString(R.string.try_keyboard_hint)
             textSize = 16f
             inputType = InputType.TYPE_CLASS_TEXT or
@@ -222,7 +224,7 @@ class MainActivity : Activity() {
         modelButton.text = getString(R.string.selected_model, model.label, model.sizeLabel)
         languageButton.text = getString(R.string.selected_language, Languages.nameFor(settings.language))
 
-        // El estado del modelo puede requerir calcular su SHA-256: fuera del hilo principal.
+        // Resolver el estado puede instalar la descarga (SHA-256 y copia): fuera del hilo principal.
         Thread({
             val state = modelState(model)
             val percent = if (state == ModelStatus.Downloading) {
@@ -267,16 +269,13 @@ class MainActivity : Activity() {
     }
 
     private fun clearPendingDownload() {
-        val pendingModel = settings.pendingModelId?.let(ModelCatalog::findById)
         modelStore.cancelDownload(settings.pendingDownloadId)
-        if (pendingModel != null) {
-            modelStore.deleteUnready(pendingModel)
-        }
+        settings.pendingModelId?.let(ModelCatalog::findById)?.let(modelStore::deleteDownload)
         settings.clearPendingDownload()
     }
 
     private fun modelState(model: SpeechModel): ModelStatus {
-        return modelStore.resolveStatus(settings, model) { modelStore.isReady(model) }
+        return modelStore.resolveStatus(settings, model)
     }
 
     private fun showModelPicker() {

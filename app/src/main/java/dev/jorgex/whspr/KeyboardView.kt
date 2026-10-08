@@ -57,6 +57,10 @@ class KeyboardView @JvmOverloads constructor(
     // true si el SHIFT actual lo puso la mayúscula automática y no el usuario: solo
     // ese se puede retirar solo cuando el cursor deja de pedir mayúscula.
     private var autoShifted = false
+
+    // Lo último que pidió el editor, para reponer la mayúscula automática al volver
+    // de símbolos sin esperar al siguiente cambio de texto.
+    private var autoShiftWanted = false
     private var periodSide = PeriodSide.LEFT
     private var showNumberRow = true
     private var isSecureInput = false
@@ -120,6 +124,7 @@ class KeyboardView @JvmOverloads constructor(
      * campo de nombres…). No toca CAPS_LOCK ni un SHIFT puesto a mano por el usuario.
      */
     fun setAutoShift(wanted: Boolean) {
+        autoShiftWanted = wanted
         if (shiftState == ShiftState.CAPS_LOCK) return
         if (shiftState == ShiftState.SHIFT && !autoShifted) return
         val next = if (wanted) ShiftState.SHIFT else ShiftState.NONE
@@ -271,17 +276,21 @@ class KeyboardView @JvmOverloads constructor(
         return true
     }
 
-    /** Tecla bajo el punto, o la más cercana de su fila si cae en un hueco entre teclas. */
+    /**
+     * Tecla que corresponde al punto. Se calcula con los pesos del layout y no con la
+     * geometría de las vistas: no deja huecos entre teclas y funciona aunque el grid
+     * se acabe de reconstruir y aún no tenga layout (cambio de capa con otro dedo ya
+     * bajando).
+     */
     private fun keyAt(x: Float, y: Float): KeyHolder? {
-        if (rows.isEmpty() || height == 0) return null
+        if (rows.isEmpty() || width == 0 || height == 0) return null
         val row = rows[(y / height * rows.size).toInt().coerceIn(0, rows.size - 1)]
-        return row.minByOrNull { holder ->
-            when {
-                x < holder.view.left -> holder.view.left - x
-                x > holder.view.right -> x - holder.view.right
-                else -> 0f
-            }
+        var remaining = (x / width).coerceIn(0f, 1f) * row.sumOf { it.key.weight.toDouble() }.toFloat()
+        for (holder in row) {
+            remaining -= holder.key.weight
+            if (remaining <= 0f) return holder
         }
+        return row.lastOrNull()
     }
 
     private fun press(pointerId: Int, holder: KeyHolder) {
@@ -324,9 +333,13 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun scheduleRepeat() {
         val runnable = object : Runnable {
+            // Tope de seguridad: si el ACTION_UP no llega nunca (p. ej. lo filtra una
+            // ventana superpuesta), el borrado no sigue hasta vaciar el campo.
+            var remaining = MAX_REPEATS
+
             override fun run() {
                 onBackspace()
-                handler.postDelayed(this, REPEAT_INTERVAL_MS)
+                if (--remaining > 0) handler.postDelayed(this, REPEAT_INTERVAL_MS)
             }
         }
         repeatRunnable = runnable
@@ -408,10 +421,7 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun handleTap(key: Key) {
         when (key.type) {
-            KeyType.CHAR -> {
-                onText(displayLabel(key))
-                consumeShiftIfNeeded()
-            }
+            KeyType.CHAR -> typeAndConsumeShift(displayLabel(key))
             KeyType.SHIFT -> handleShiftTap()
             KeyType.BACKSPACE -> onBackspace()
             KeyType.LAYER_SYMBOLS -> setLayer(KeyboardLayer.SYMBOLS_1)
@@ -423,6 +433,14 @@ class KeyboardView @JvmOverloads constructor(
             KeyType.MIC -> onMic()
             KeyType.ENTER -> onEnter()
         }
+    }
+
+    // El SHIFT de una letra se gasta ANTES de avisar al IME: así, si el editor pide
+    // mayúscula también para la siguiente (campo solo de mayúsculas), la respuesta
+    // del IME lo vuelve a activar en vez de quedar pisada.
+    private fun typeAndConsumeShift(text: String) {
+        consumeShiftIfNeeded()
+        onText(text)
     }
 
     private fun handleShiftTap() {
@@ -450,6 +468,10 @@ class KeyboardView @JvmOverloads constructor(
     private fun setLayer(newLayer: KeyboardLayer) {
         layer = newLayer
         resetShiftTransient()
+        if (newLayer == KeyboardLayer.LETTERS && autoShiftWanted && shiftState == ShiftState.NONE) {
+            shiftState = ShiftState.SHIFT
+            autoShifted = true
+        }
         render()
     }
 
@@ -518,8 +540,7 @@ class KeyboardView @JvmOverloads constructor(
                     setTextColor(palette.textPrimary)
                     setPadding(context.dp(14), context.dp(10), context.dp(14), context.dp(10))
                     setOnClickListener {
-                        onText(variant)
-                        consumeShiftIfNeeded()
+                        typeAndConsumeShift(variant)
                         dismissLongPressPopup()
                     }
                 },
@@ -573,6 +594,7 @@ class KeyboardView @JvmOverloads constructor(
         private const val DOUBLE_TAP_WINDOW_MS = 500L
         private const val REPEAT_INITIAL_DELAY_MS = 400L
         private const val REPEAT_INTERVAL_MS = 50L
+        private const val MAX_REPEATS = 600
         private const val LONG_PRESS_MS = 350L
     }
 }
