@@ -35,7 +35,7 @@
     <string name="error_missing_microphone_permission">Abre Whspr y permite el micrófono.</string>
     <string name="error_missing_model">Abre Whspr y descarga el modelo.</string>
     <string name="error_recording_failed">No he podido grabar audio.</string>
-    <string name="error_no_audio">No se ha grabado audio.</string>
+    <string name="error_no_audio">No he oído nada.</string>
     <string name="error_invalid_model">El modelo descargado no es válido. Descárgalo otra vez.</string>
     <string name="error_download_start_failed">No he podido empezar la descarga.</string>
     <string name="error_transcriber_not_ready">No he podido transcribir el audio.</string>
