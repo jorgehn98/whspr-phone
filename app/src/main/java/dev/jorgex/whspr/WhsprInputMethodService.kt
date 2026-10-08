@@ -278,8 +278,8 @@ class WhsprInputMethodService : InputMethodService() {
         val model = dictationModel ?: ModelCatalog.byId(settings.modelId)
         val language = settings.language
         val session = inputSession
-        val audioFile = recorder.stop()
-        if (audioFile == null) {
+        val samples = recorder.stop()
+        if (samples == null) {
             cancelDictation()
             showMessage(R.string.error_no_audio)
             return
@@ -290,7 +290,7 @@ class WhsprInputMethodService : InputMethodService() {
         applyState()
 
         Thread({
-            val result = transcriber.transcribe(audioFile, model, language, token)
+            val result = transcriber.transcribe(samples, model, language, token)
             mainHandler.post {
                 if (destroyed || session != inputSession) return@post
                 dictationModel = null

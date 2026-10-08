@@ -220,8 +220,8 @@ class WhsprRecognitionService : RecognitionService() {
             listener.endOfSpeech()
         }
 
-        val audioFile = stopRecorder()
-        if (audioFile == null) {
+        val samples = stopRecorder()
+        if (samples == null) {
             complete(session) {
                 listener.error(SpeechRecognizer.ERROR_NO_MATCH)
             }
@@ -236,7 +236,7 @@ class WhsprRecognitionService : RecognitionService() {
             language = currentLanguage
         }
         Thread({
-            val result = transcriber.transcribe(audioFile, model, language, token)
+            val result = transcriber.transcribe(samples, model, language, token)
             complete(session) {
                 when (result) {
                     is DictationResult.Text ->
@@ -301,7 +301,7 @@ class WhsprRecognitionService : RecognitionService() {
         return runCatching { callback() }.isSuccess
     }
 
-    private fun stopRecorder(): java.io.File? {
+    private fun stopRecorder(): ShortArray? {
         val activeRecorder = recorder ?: return null
         recorder = null
         return activeRecorder.stop()

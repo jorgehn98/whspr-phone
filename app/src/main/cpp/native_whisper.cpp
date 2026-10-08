@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
-#include <fstream>
 #include <mutex>
 #include <string>
 #include <sys/stat.h>
@@ -13,80 +12,8 @@
 
 namespace {
 
-constexpr uint32_t MAX_WAV_PCM_BYTES = 16000 * 2 * 70;
-
-template <typename T>
-bool read_value(std::ifstream & file, T & out) {
-    file.read(reinterpret_cast<char *>(&out), sizeof(T));
-    return file.good();
-}
-
-bool read_wav_mono_16k(const std::string & path, std::vector<float> & pcm) {
-    std::ifstream file(path, std::ios::binary);
-    if (!file) return false;
-
-    char riff[4];
-    uint32_t riff_size = 0;
-    char wave[4];
-    if (!file.read(riff, 4)) return false;
-    if (!read_value(file, riff_size)) return false;
-    if (!file.read(wave, 4)) return false;
-
-    if (std::string(riff, 4) != "RIFF" || std::string(wave, 4) != "WAVE") {
-        return false;
-    }
-
-    bool valid_format = false;
-    std::vector<int16_t> samples;
-
-    while (file && !file.eof()) {
-        char chunk_id_raw[4];
-        uint32_t chunk_size = 0;
-        file.read(chunk_id_raw, 4);
-        if (!file) break;
-        if (!read_value(file, chunk_size)) break;
-
-        const std::string chunk_id(chunk_id_raw, 4);
-        const auto next_chunk = static_cast<std::streamoff>(file.tellg()) + chunk_size + (chunk_size % 2);
-
-        if (chunk_id == "fmt ") {
-            uint16_t audio_format = 0;
-            uint16_t channels = 0;
-            uint32_t sample_rate = 0;
-            uint32_t byte_rate = 0;
-            uint16_t block_align = 0;
-            uint16_t bits_per_sample = 0;
-
-            if (!read_value(file, audio_format)) return false;
-            if (!read_value(file, channels)) return false;
-            if (!read_value(file, sample_rate)) return false;
-            if (!read_value(file, byte_rate)) return false;
-            if (!read_value(file, block_align)) return false;
-            if (!read_value(file, bits_per_sample)) return false;
-
-            valid_format = audio_format == 1 &&
-                channels == 1 &&
-                sample_rate == 16000 &&
-                bits_per_sample == 16;
-        } else if (chunk_id == "data") {
-            if (!valid_format) return false;
-            if (chunk_size % sizeof(int16_t) != 0) return false;
-            if (chunk_size == 0 || chunk_size > MAX_WAV_PCM_BYTES) return false;
-            samples.resize(chunk_size / sizeof(int16_t));
-            if (!file.read(reinterpret_cast<char *>(samples.data()), chunk_size)) return false;
-        }
-
-        file.seekg(next_chunk);
-    }
-
-    if (!valid_format || samples.empty()) return false;
-
-    pcm.resize(samples.size());
-    std::transform(samples.begin(), samples.end(), pcm.begin(), [](int16_t sample) {
-        return static_cast<float>(sample) / 32768.0f;
-    });
-    return true;
-}
+// Contrato de audio con AudioRecorder: 16 kHz mono PCM16, como mucho ~70 s.
+constexpr jsize MAX_SAMPLES = 16000 * 70;
 
 std::string jstring_to_string(JNIEnv * env, jstring value) {
     if (value == nullptr) return {};
@@ -193,7 +120,7 @@ extern "C" JNIEXPORT jstring JNICALL
 Java_dev_jorgex_whspr_NativeWhisper_transcribeNative(
     JNIEnv * env,
     jclass,
-    jstring audio_path,
+    jshortArray samples,
     jstring model_path,
     jstring language,
     jlong token
@@ -201,18 +128,22 @@ Java_dev_jorgex_whspr_NativeWhisper_transcribeNative(
     std::lock_guard<std::mutex> lock(transcribe_mutex());
     if (token <= cancelled_up_to.load()) return nullptr;
 
-    const std::string audio = jstring_to_string(env, audio_path);
     const std::string model = jstring_to_string(env, model_path);
     const std::string lang = jstring_to_string(env, language);
-
-    if (audio.empty() || model.empty()) {
+    if (samples == nullptr || model.empty()) {
         return nullptr;
     }
 
-    std::vector<float> pcm;
-    if (!read_wav_mono_16k(audio, pcm)) {
+    const jsize sample_count = env->GetArrayLength(samples);
+    if (sample_count <= 0 || sample_count > MAX_SAMPLES) {
         return nullptr;
     }
+    std::vector<jshort> pcm16(static_cast<size_t>(sample_count));
+    env->GetShortArrayRegion(samples, 0, sample_count, pcm16.data());
+    std::vector<float> pcm(pcm16.size());
+    std::transform(pcm16.begin(), pcm16.end(), pcm.begin(), [](jshort sample) {
+        return static_cast<float>(sample) / 32768.0f;
+    });
 
     whisper_context * context = cached_context(model);
     if (context == nullptr) {

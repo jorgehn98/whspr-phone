@@ -9,8 +9,6 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.os.Build
 import java.io.ByteArrayOutputStream
-import java.io.File
-import java.io.FileOutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.concurrent.thread
@@ -154,23 +152,18 @@ class AudioRecorder(private val context: Context, private val endOnSilence: Bool
     }
 
     /**
-     * Para la grabación y devuelve el WAV, o null si no hay nada que transcribir: sin
-     * audio, o sin voz detectada. Whisper inventa frases cuando recibe solo silencio,
-     * así que ese audio no llega nunca al modelo.
+     * Para la grabación y devuelve sus muestras (16 kHz mono PCM16), o null si no hay
+     * nada que transcribir: sin audio, o sin voz detectada. Whisper inventa frases
+     * cuando recibe solo silencio, así que ese audio no llega nunca al modelo. El
+     * audio vive solo en memoria: nunca se escribe en disco.
      */
     @Synchronized
-    fun stop(): File? {
+    fun stop(): ShortArray? {
         val audioBytes = teardown()
         if (audioBytes == null || audioBytes.isEmpty() || !silence.heardSpeech) return null
-
-        return runCatching {
-            val output = File.createTempFile("whspr-dictation-", ".wav", context.cacheDir)
-            FileOutputStream(output).use { stream ->
-                stream.write(wavHeader(audioBytes.size))
-                stream.write(audioBytes)
-            }
-            output
-        }.getOrNull()
+        val samples = ShortArray(audioBytes.size / 2)
+        ByteBuffer.wrap(audioBytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(samples)
+        return samples
     }
 
     @Synchronized
@@ -227,26 +220,6 @@ class AudioRecorder(private val context: Context, private val endOnSilence: Bool
         val rms = kotlin.math.sqrt(meanSquare)
         val normalized = (rms / 32768.0).coerceIn(0.0, 1.0)
         return kotlin.math.sqrt(normalized).toFloat()
-    }
-
-    private fun wavHeader(pcmBytes: Int): ByteArray {
-        val totalDataLen = pcmBytes + 36
-        val byteRate = SAMPLE_RATE * CHANNELS * BITS_PER_SAMPLE / 8
-        return ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN).apply {
-            put("RIFF".toByteArray())
-            putInt(totalDataLen)
-            put("WAVE".toByteArray())
-            put("fmt ".toByteArray())
-            putInt(16)
-            putShort(1.toShort())
-            putShort(CHANNELS.toShort())
-            putInt(SAMPLE_RATE)
-            putInt(byteRate)
-            putShort((CHANNELS * BITS_PER_SAMPLE / 8).toShort())
-            putShort(BITS_PER_SAMPLE.toShort())
-            put("data".toByteArray())
-            putInt(pcmBytes)
-        }.array()
     }
 
     companion object {

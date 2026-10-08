@@ -2,7 +2,6 @@ package dev.jorgex.whspr
 
 import android.os.Handler
 import android.os.Looper
-import java.io.File
 import java.util.concurrent.atomic.AtomicLong
 
 /** Resultado de un dictado ya transcrito y filtrado. */
@@ -30,21 +29,17 @@ class LocalTranscriber(private val modelStore: ModelStore) {
 
     fun cancel(token: Long) = NativeWhisper.cancel(token)
 
-    /** Bloqueante: llamar fuera del hilo principal. Siempre borra [audioFile]. */
-    fun transcribe(audioFile: File, model: SpeechModel, language: String, token: Long): DictationResult {
-        try {
-            if (!modelStore.hasExpectedSha256(model)) {
-                modelStore.delete(model)
-                return DictationResult.InvalidModel
-            }
-            val raw = runCatching {
-                NativeWhisper.transcribe(audioFile.absolutePath, modelStore.fileFor(model).absolutePath, language, token)
-            }.getOrNull() ?: return DictationResult.Failed
-            val text = stripNonVerbalTags(raw)
-            return if (text.isBlank()) DictationResult.NoSpeech else DictationResult.Text(text)
-        } finally {
-            runCatching { audioFile.delete() }
+    /** Bloqueante: llamar fuera del hilo principal. [samples] es audio 16 kHz mono PCM16. */
+    fun transcribe(samples: ShortArray, model: SpeechModel, language: String, token: Long): DictationResult {
+        if (!modelStore.hasExpectedSha256(model)) {
+            modelStore.delete(model)
+            return DictationResult.InvalidModel
         }
+        val raw = runCatching {
+            NativeWhisper.transcribe(samples, modelStore.fileFor(model).absolutePath, language, token)
+        }.getOrNull() ?: return DictationResult.Failed
+        val text = stripNonVerbalTags(raw)
+        return if (text.isBlank()) DictationResult.NoSpeech else DictationResult.Text(text)
     }
 }
 
@@ -59,11 +54,11 @@ object NativeWhisper {
 
     fun newToken(): Long = tokens.incrementAndGet()
 
-    fun transcribe(audioPath: String, modelPath: String, language: String, token: Long): String? {
+    fun transcribe(samples: ShortArray, modelPath: String, language: String, token: Long): String? {
         if (!available) return null
         mainHandler.removeCallbacks(releaseRunnable)
         try {
-            return transcribeNative(audioPath, modelPath, language, token)?.trim()
+            return transcribeNative(samples, modelPath, language, token)?.trim()
         } finally {
             // El modelo cargado ocupa decenas o cientos de MB: se suelta tras un rato
             // sin dictar en vez de retenerlo mientras viva el proceso del teclado.
@@ -77,7 +72,7 @@ object NativeWhisper {
     }
 
     @JvmStatic
-    private external fun transcribeNative(audioPath: String, modelPath: String, language: String, token: Long): String?
+    private external fun transcribeNative(samples: ShortArray, modelPath: String, language: String, token: Long): String?
 
     @JvmStatic
     private external fun cancelNative(token: Long)
