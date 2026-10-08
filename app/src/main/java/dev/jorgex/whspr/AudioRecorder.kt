@@ -34,7 +34,8 @@ class AudioRecorder(private val context: Context) {
 
     /**
      * Se invoca EN EL HILO DE AUDIO (whspr-audio) cuando el propio recorder se
-     * auto-detiene al alcanzar MAX_PCM_BYTES (~60s). El consumidor decide si
+     * auto-detiene: al alcanzar MAX_PCM_BYTES (~60s) o si falla la lectura del
+     * micrófono. El consumidor decide si
      * necesita saltar a otro hilo (p. ej. con Handler/post), igual que [onLevel].
      * No se invoca en un stop()/discard() manual: solo ante el auto-stop interno.
      */
@@ -121,7 +122,10 @@ class AudioRecorder(private val context: Context) {
                             runCatching { onAutoStop?.invoke() }
                         }
                     } else {
+                        // Error de lectura (p. ej. otra app se queda el micro): la
+                        // grabación ha terminado sola igual que al alcanzar el límite.
                         recording = false
+                        runCatching { onAutoStop?.invoke() }
                     }
                 }
             }

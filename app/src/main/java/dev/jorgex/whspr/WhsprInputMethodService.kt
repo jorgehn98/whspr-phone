@@ -23,18 +23,19 @@ class WhsprInputMethodService : InputMethodService() {
     private val recorder by lazy { AudioRecorder(this) }
     private val settings by lazy { AppSettings(this) }
     private val modelStore by lazy { ModelStore(this) }
-    private val transcriber = LocalTranscriber()
+    private val transcriber by lazy { LocalTranscriber(modelStore) }
 
     private var state = DictationState.KEYBOARD
     private var isSecureInput = false
     private var editorAction = EditorInfo.IME_ACTION_NONE
     private var noEnterAction = false
     private var inputSession = 0
-    private var dictationModelId: String? = null
+    private var dictationModel: SpeechModel? = null
+    private var transcriptionToken = 0L
     private var destroyed = false
 
     private var keyboardView: KeyboardView? = null
-    private var voiceWaveView: VoiceWaveView? = null
+    private var dictationView: DictationView? = null
 
     override fun onEvaluateFullscreenMode(): Boolean {
         return false
@@ -59,7 +60,7 @@ class WhsprInputMethodService : InputMethodService() {
             filterTouchesWhenObscured = true
         }
 
-        // Teclado y onda comparten la MISMA altura fija (KeyboardView.HEIGHT_DP):
+        // Teclado y panel de dictado comparten la MISMA altura fija (KeyboardView.HEIGHT_DP):
         // alternar entre ellos (applyState) solo cambia qué vista es VISIBLE/GONE,
         // nunca el alto del contenedor del IME, para no dar un salto de layout a
         // la app de debajo.
@@ -80,17 +81,18 @@ class WhsprInputMethodService : InputMethodService() {
         keyboardView = keyboard
         keyboard.setSecureInput(isSecureInput)
 
-        val wave = VoiceWaveView(this).apply {
+        val dictation = DictationView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(KeyboardView.HEIGHT_DP),
             )
             visibility = View.GONE
-            setOnClickListener { toggleDictation() }
+            onFinish = { toggleDictation() }
+            onCancel = { cancelDictation() }
         }
-        voiceWaveView = wave
+        dictationView = dictation
 
-        root.addView(wave)
+        root.addView(dictation)
         root.addView(keyboard)
         applyState()
         return root
@@ -116,9 +118,7 @@ class WhsprInputMethodService : InputMethodService() {
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
         keyboardView?.dismissLongPressPopup()
-        if (state != DictationState.KEYBOARD) recorder.discard()
-        inputSession += 1
-        transitionTo(DictationState.KEYBOARD)
+        abandonDictation()
         isSecureInput = attribute?.let { isPasswordInput(it.inputType) } ?: false
         editorAction = attribute?.imeOptions?.and(EditorInfo.IME_MASK_ACTION) ?: EditorInfo.IME_ACTION_NONE
         noEnterAction = (attribute?.imeOptions?.and(EditorInfo.IME_FLAG_NO_ENTER_ACTION) ?: 0) != 0
@@ -128,24 +128,27 @@ class WhsprInputMethodService : InputMethodService() {
 
     override fun onFinishInput() {
         keyboardView?.dismissLongPressPopup()
-        if (state != DictationState.KEYBOARD) recorder.discard()
-        inputSession += 1
+        abandonDictation()
         isSecureInput = false
         editorAction = EditorInfo.IME_ACTION_NONE
         noEnterAction = false
-        transitionTo(DictationState.KEYBOARD)
         keyboardView?.setSecureInput(false)
+        applyState()
         super.onFinishInput()
+    }
+
+    override fun onWindowHidden() {
+        // Con el teclado oculto no hay forma de ver ni parar la grabación: no se deja
+        // el micrófono abierto. Una transcripción ya en curso sí puede terminar.
+        if (state == DictationState.RECORDING) cancelDictation()
+        super.onWindowHidden()
     }
 
     override fun onDestroy() {
         destroyed = true
-        if (state != DictationState.KEYBOARD) recorder.discard()
-        inputSession += 1
-        dictationModelId = null
-        state = DictationState.KEYBOARD
+        abandonDictation()
         keyboardView = null
-        voiceWaveView = null
+        dictationView = null
         mainHandler.removeCallbacksAndMessages(null)
         super.onDestroy()
     }
@@ -175,6 +178,7 @@ class WhsprInputMethodService : InputMethodService() {
         }
         if (!recorder.hasPermission()) {
             showMessage(R.string.error_missing_microphone_permission)
+            openSettings()
             return
         }
         if (modelStore.resolveStatus(settings, model) { modelStore.isDownloaded(model) } != ModelStatus.Ready) {
@@ -182,8 +186,8 @@ class WhsprInputMethodService : InputMethodService() {
             openSettings()
             return
         }
-        dictationModelId = model.id
-        recorder.onLevel = { level -> voiceWaveView?.setLevel(level) }
+        dictationModel = model
+        recorder.onLevel = { level -> dictationView?.setLevel(level) }
         // Se invoca desde el hilo whspr-audio: saltar a main con post() antes de
         // tocar estado/finishDictation (que llama a recorder.stop() -> worker?.join,
         // y worker ES ese mismo hilo de audio: llamarlo síncronamente aquí bloquearía).
@@ -198,7 +202,7 @@ class WhsprInputMethodService : InputMethodService() {
         if (!recorder.start()) {
             recorder.onLevel = null
             recorder.onAutoStop = null
-            dictationModelId = null
+            dictationModel = null
             showMessage(R.string.error_recording_failed)
             return
         }
@@ -207,75 +211,54 @@ class WhsprInputMethodService : InputMethodService() {
     }
 
     private fun finishDictation() {
-        val sessionModelId = dictationModelId ?: settings.modelId
+        val model = dictationModel ?: ModelCatalog.byId(settings.modelId)
+        val language = settings.language
+        val session = inputSession
         val audioFile = recorder.stop()
-        recorder.onLevel = null
-        recorder.onAutoStop = null
+        if (audioFile == null) {
+            cancelDictation()
+            showMessage(R.string.error_no_audio)
+            return
+        }
+        val token = transcriber.newToken()
+        transcriptionToken = token
         transitionTo(DictationState.TRANSCRIBING)
         applyState()
-        if (audioFile == null) {
-            dictationModelId = null
-            showMessage(R.string.error_no_audio)
-            transitionTo(DictationState.KEYBOARD)
-            applyState()
-            return
-        }
-
-        val session = inputSession
-        // El usuario cambió de modelo a mitad de grabación: se descarta el
-        // resultado en silencio (sin Toast) porque no fue un fallo, fue una
-        // decisión suya de cambiar de modelo antes de terminar.
-        if (settings.modelId != sessionModelId) {
-            dictationModelId = null
-            runCatching { audioFile.delete() }
-            transitionTo(DictationState.KEYBOARD)
-            applyState()
-            return
-        }
-        val model = ModelCatalog.byId(sessionModelId)
-        val language = settings.language
 
         Thread({
-            var modelOk = false
-            var text: String? = null
-            try {
-                runCatching {
-                    if (settings.modelId != sessionModelId) {
-                        return@runCatching
-                    }
-                    modelOk = modelStore.hasExpectedSha256(model)
-                    if (!modelOk) {
-                        modelStore.delete(model)
-                    } else if (settings.modelId == sessionModelId) {
-                        text = transcriber.transcribe(audioFile, modelStore.fileFor(model), language)
-                    }
-                }
-            } finally {
-                runCatching { audioFile.delete() }
-            }
+            val result = transcriber.transcribe(audioFile, model, language, token)
             mainHandler.post {
-                if (destroyed) return@post
-                dictationModelId = null
-                if (session != inputSession) return@post
+                if (destroyed || session != inputSession) return@post
+                dictationModel = null
                 transitionTo(DictationState.KEYBOARD)
                 applyState()
-                if (settings.modelId != sessionModelId) return@post
-                val finalText = text?.let(::stripNonVerbalTags)
-                if (!modelOk) {
-                    showMessage(R.string.error_invalid_model)
-                } else if (text == null) {
-                    showMessage(R.string.error_transcriber_not_ready)
-                } else if (finalText.isNullOrBlank()) {
-                    // Dictado sin habla: Whisper puede devolver solo una etiqueta no
-                    // verbal ("[MÚSICA]") o directamente texto en blanco. En ambos
-                    // casos no hay nada que pegar; es el resultado esperado, no un
-                    // error, así que no se muestra Toast.
-                    Unit
-                } else {
-                    commitTranscription(finalText)
+                when (result) {
+                    is DictationResult.Text -> commitTranscription(result.text)
+                    // Dictado sin habla: no hay nada que pegar y no es un error.
+                    DictationResult.NoSpeech -> Unit
+                    DictationResult.InvalidModel -> showMessage(R.string.error_invalid_model)
+                    DictationResult.Failed -> showMessage(R.string.error_transcriber_not_ready)
                 }
             }
         }, "whspr-transcribe").start()
+    }
+
+    /** Cancelación pedida por el usuario: descarta audio o transcripción y vuelve al teclado. */
+    private fun cancelDictation() {
+        abandonDictation()
+        applyState()
+    }
+
+    /**
+     * Invalida el dictado en curso sin tocar las vistas: suelta el micrófono, aborta
+     * la transcripción y avanza [inputSession] para que un resultado tardío se ignore.
+     */
+    private fun abandonDictation() {
+        inputSession += 1
+        if (state == DictationState.RECORDING) recorder.discard()
+        if (state == DictationState.TRANSCRIBING) transcriber.cancel(transcriptionToken)
+        dictationModel = null
+        transitionTo(DictationState.KEYBOARD)
     }
 
     private fun transitionTo(newState: DictationState) {
@@ -313,7 +296,12 @@ class WhsprInputMethodService : InputMethodService() {
             showMessage(R.string.error_commit_lost)
             return
         }
-        connection.commitText(text, 1)
+        // El texto dictado no debe quedar pegado a lo que ya había: si justo antes
+        // del cursor hay una palabra o un signo de cierre, se separa con un espacio.
+        val previous = connection.getTextBeforeCursor(1, 0)?.toString().orEmpty()
+        val needsSeparator = previous.isNotEmpty() &&
+            (previous[0].isLetterOrDigit() || previous[0] in SEPARATED_AFTER)
+        connection.commitText(if (needsSeparator) " $text" else text, 1)
         // .toString() fuerza comparación por contenido: algunos editores devuelven
         // SpannableString/SpannableStringBuilder, que no sobrescriben equals() y
         // comparan por identidad, provocando un espacio duplicado.
@@ -323,25 +311,17 @@ class WhsprInputMethodService : InputMethodService() {
         }
     }
 
-    /** Refleja [state] en las vistas: KEYBOARD/RECORDING/TRANSCRIBING intercambian teclado y onda. */
+    /** Refleja [state] en las vistas: KEYBOARD/RECORDING/TRANSCRIBING intercambian teclado y panel. */
     private fun applyState() {
         val keyboard = keyboardView ?: return
-        val wave = voiceWaveView ?: return
+        val dictation = dictationView ?: return
+        val dictating = state != DictationState.KEYBOARD
+        keyboard.visibility = if (dictating) View.GONE else View.VISIBLE
+        dictation.visibility = if (dictating) View.VISIBLE else View.GONE
         when (state) {
-            DictationState.KEYBOARD -> {
-                keyboard.visibility = View.VISIBLE
-                wave.visibility = View.GONE
-            }
-            DictationState.RECORDING -> {
-                keyboard.visibility = View.GONE
-                wave.visibility = View.VISIBLE
-                wave.setMode(VoiceWaveView.Mode.RECORDING)
-            }
-            DictationState.TRANSCRIBING -> {
-                keyboard.visibility = View.GONE
-                wave.visibility = View.VISIBLE
-                wave.setMode(VoiceWaveView.Mode.TRANSCRIBING)
-            }
+            DictationState.KEYBOARD -> Unit
+            DictationState.RECORDING -> dictation.setMode(VoiceWaveView.Mode.RECORDING)
+            DictationState.TRANSCRIBING -> dictation.setMode(VoiceWaveView.Mode.TRANSCRIBING)
         }
     }
 
@@ -357,4 +337,8 @@ class WhsprInputMethodService : InputMethodService() {
         }
     }
 
+    private companion object {
+        /** Signos tras los que el dictado se separa con un espacio. */
+        const val SEPARATED_AFTER = ".,;:!?)]»"
+    }
 }

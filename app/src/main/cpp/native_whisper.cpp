@@ -2,6 +2,7 @@
 #include <whisper.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cstdint>
 #include <fstream>
 #include <mutex>
@@ -128,10 +129,18 @@ bool same_model(const ModelFingerprint & left, const ModelFingerprint & right) {
         left.modified == right.modified;
 }
 
-whisper_context * cached_context(const std::string & model_path) {
-    static whisper_context * context = nullptr;
-    static ModelFingerprint loaded_model;
+// Contexto cacheado entre dictados; solo se toca con transcribe_mutex() tomado.
+whisper_context * context = nullptr;
+ModelFingerprint loaded_model;
 
+void free_context() {
+    if (context == nullptr) return;
+    whisper_free(context);
+    context = nullptr;
+    loaded_model = {};
+}
+
+whisper_context * cached_context(const std::string & model_path) {
     ModelFingerprint requested_model;
     if (!model_fingerprint(model_path, requested_model)) {
         return nullptr;
@@ -141,11 +150,7 @@ whisper_context * cached_context(const std::string & model_path) {
         return context;
     }
 
-    if (context != nullptr) {
-        whisper_free(context);
-        context = nullptr;
-        loaded_model = {};
-    }
+    free_context();
 
     whisper_context_params context_params = whisper_context_default_params();
     context_params.use_gpu = false;
@@ -162,7 +167,27 @@ std::mutex & transcribe_mutex() {
     return mutex;
 }
 
+// Cancelación por token: cada transcripción recibe un token creciente desde Kotlin y
+// cancelar marca como cancelados los tokens hasta ese. Así una cancelación nunca se pierde aunque
+// llegue mientras la transcripción aún espera el mutex, ni afecta a una posterior.
+std::atomic<int64_t> cancelled_up_to{0};
+
 } // namespace
+
+extern "C" JNIEXPORT void JNICALL
+Java_dev_jorgex_whspr_NativeWhisper_cancelNative(JNIEnv *, jclass, jlong token) {
+    int64_t current = cancelled_up_to.load();
+    while (token > current && !cancelled_up_to.compare_exchange_weak(current, token)) {
+    }
+}
+
+// Libera el modelo cacheado si no hay una transcripción en curso (try_lock: nunca
+// bloquea al llamante, que es el hilo principal).
+extern "C" JNIEXPORT void JNICALL
+Java_dev_jorgex_whspr_NativeWhisper_releaseNative(JNIEnv *, jclass) {
+    std::unique_lock<std::mutex> lock(transcribe_mutex(), std::try_to_lock);
+    if (lock.owns_lock()) free_context();
+}
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_dev_jorgex_whspr_NativeWhisper_transcribeNative(
@@ -170,9 +195,11 @@ Java_dev_jorgex_whspr_NativeWhisper_transcribeNative(
     jclass,
     jstring audio_path,
     jstring model_path,
-    jstring language
+    jstring language,
+    jlong token
 ) {
     std::lock_guard<std::mutex> lock(transcribe_mutex());
+    if (token <= cancelled_up_to.load()) return nullptr;
 
     const std::string audio = jstring_to_string(env, audio_path);
     const std::string model = jstring_to_string(env, model_path);
@@ -200,6 +227,13 @@ Java_dev_jorgex_whspr_NativeWhisper_transcribeNative(
     params.no_timestamps = true;
     params.no_context = true;
     params.translate = false;
+    // Sin tokens no verbales: reduce las etiquetas tipo "[MÚSICA]" en audio sin habla.
+    params.suppress_nst = true;
+    int64_t request_token = token;
+    params.abort_callback = [](void * data) {
+        return *static_cast<int64_t *>(data) <= cancelled_up_to.load();
+    };
+    params.abort_callback_user_data = &request_token;
 
     if (lang == "auto") {
         params.detect_language = true;
@@ -213,6 +247,7 @@ Java_dev_jorgex_whspr_NativeWhisper_transcribeNative(
     if (whisper_full(context, params, pcm.data(), static_cast<int>(pcm.size())) != 0) {
         return nullptr;
     }
+    if (token <= cancelled_up_to.load()) return nullptr;
     const int segments = whisper_full_n_segments(context);
     for (int i = 0; i < segments; ++i) {
         const char * segment = whisper_full_get_segment_text(context, i);
