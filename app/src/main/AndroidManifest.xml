@@ -6,6 +6,21 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
+    <!--
+        El RecognitionService comprueba el permiso de micrófono de la app que pide el
+        dictado, y Android responde "denegado" si Whspr no puede ver ese paquete. Desde
+        Android 13 el sistema hace de intermediario y ya no concede esa visibilidad al
+        conectar, así que se declara aquí para apps con pantalla propia y para teclados.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+        </intent>
+        <intent>
+            <action android:name="android.view.InputMethod" />
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="false"
         android:fullBackupContent="false"

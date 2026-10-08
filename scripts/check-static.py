@@ -177,7 +177,10 @@ def main() -> int:
     keyboard_view = text("app/src/main/java/dev/jorgex/whspr/KeyboardView.kt")
     check("keyboard touch routing", contains_all(keyboard_view, [r"override fun onInterceptTouchEvent\(event: MotionEvent\): Boolean = true", r"private fun keyAt\(", r"private fun releaseAll\(\)"]) and re.search(r"private fun render\(\) \{[^}]*?releaseAll\(\)", keyboard_view, re.DOTALL) is not None)
     check("auto-capitalization from editor", contains_all(ime, [r"getCursorCapsMode\(inputType\)", r"override fun onUpdateSelection"]) and "fun setAutoShift(wanted: Boolean)" in keyboard_view)
-    check("recognition service UI decoupling", "onLevel" not in recognition)
+    check("recognition service results key", "SpeechRecognizer.RESULTS_RECOGNITION" in recognition and "RecognizerIntent.EXTRA_RESULTS" not in recognition)
+    check("caller package visibility", contains_all(manifest, [r"<queries>", r'<action android:name="android\.intent\.action\.MAIN" />', r'<action android:name="android\.view\.InputMethod" />']))
+    check("silent audio never reaches the model", "!silence.heardSpeech) return null" in recorder)
+    check("recognition service endpointing", contains_all(recognition, [r"AudioRecorder\(recordingContext\(listener\), endOnSilence = true\)", r"onAutoStop = \{ mainHandler\.post \{ finishListening\(listener\) \} \}"]) and "class SilenceDetector" in recorder and "AudioRecorder(this)" in ime)
 
     root_build = text("build.gradle.kts")
     app_build = text("app/build.gradle.kts")

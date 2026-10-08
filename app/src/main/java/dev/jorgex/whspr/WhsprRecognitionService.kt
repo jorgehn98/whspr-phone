@@ -15,6 +15,7 @@ import android.speech.RecognitionService
 import android.speech.RecognitionSupport
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import java.util.Locale
 
 @SuppressLint("UseRequiresApi")
 class WhsprRecognitionService : RecognitionService() {
@@ -30,12 +31,6 @@ class WhsprRecognitionService : RecognitionService() {
     private var transcriptionToken = 0L
     private var processing = false
     private var recognitionSession = 0
-    private val timeoutRunnable = Runnable {
-        synchronized(lock) {
-            currentCallback
-        }?.let(::finishListening)
-    }
-
     override fun onStartListening(recognizerIntent: android.content.Intent?, listener: Callback) {
         var busy = false
         synchronized(lock) {
@@ -54,7 +49,11 @@ class WhsprRecognitionService : RecognitionService() {
             return
         }
 
-        val sessionRecorder = AudioRecorder(recordingContext(listener))
+        // Muchos clientes nunca llaman a stopListening: la grabación termina sola por
+        // silencio, por límite de duración o por error, y aquí se cierra la escucha.
+        val sessionRecorder = AudioRecorder(recordingContext(listener), endOnSilence = true)
+        sessionRecorder.onAutoStop = { mainHandler.post { finishListening(listener) } }
+        sessionRecorder.onLevel = { level -> notifyClient { listener.rmsChanged(level * MAX_RMS_DB) } }
         recorder = sessionRecorder
         val model = ModelCatalog.byId(settings.modelId)
         synchronized(lock) {
@@ -79,9 +78,7 @@ class WhsprRecognitionService : RecognitionService() {
         }
         if (!clientReady) {
             onCancel(listener)
-            return
         }
-        mainHandler.postDelayed(timeoutRunnable, MAX_RECOGNITION_MS)
     }
 
     override fun onStopListening(listener: Callback) {
@@ -117,7 +114,9 @@ class WhsprRecognitionService : RecognitionService() {
 
         val support = RecognitionSupport.Builder()
             .addInstalledOnDeviceLanguage("es-ES")
-            .addInstalledOnDeviceLanguage(AppSettings.LANGUAGE_SPANISH)
+            .apply {
+                Languages.all.filter { it.code != Languages.AUTO }.forEach { addInstalledOnDeviceLanguage(it.code) }
+            }
             .build()
         notifyClient {
             supportCallback.onSupportResult(support)
@@ -189,12 +188,10 @@ class WhsprRecognitionService : RecognitionService() {
             return
         }
         transcriber.cancel(cancelledToken)
-        mainHandler.removeCallbacks(timeoutRunnable)
         discardRecorder()
     }
 
     override fun onDestroy() {
-        mainHandler.removeCallbacks(timeoutRunnable)
         discardRecorder()
         synchronized(lock) {
             currentCallback = null
@@ -219,7 +216,6 @@ class WhsprRecognitionService : RecognitionService() {
         if (!shouldFinish) {
             return
         }
-        mainHandler.removeCallbacks(timeoutRunnable)
         notifyClient {
             listener.endOfSpeech()
         }
@@ -245,7 +241,8 @@ class WhsprRecognitionService : RecognitionService() {
                 when (result) {
                     is DictationResult.Text ->
                         listener.results(Bundle().apply {
-                            putStringArrayList(RecognizerIntent.EXTRA_RESULTS, arrayListOf(result.text))
+                            // Clave que leen los clientes de SpeechRecognizer en onResults.
+                            putStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION, arrayListOf(result.text))
                         })
                     DictationResult.NoSpeech ->
                         listener.error(SpeechRecognizer.ERROR_NO_MATCH)
@@ -267,7 +264,6 @@ class WhsprRecognitionService : RecognitionService() {
             recognitionSession += 1
             processing = false
         }
-        mainHandler.removeCallbacks(timeoutRunnable)
         discardRecorder()
         notifyClient {
             listener.error(error)
@@ -293,13 +289,12 @@ class WhsprRecognitionService : RecognitionService() {
         }
     }
 
+    /** Idioma Whisper para la etiqueta BCP 47 que pide el cliente; auto si no se reconoce. */
     private fun languageFor(recognizerIntent: android.content.Intent?): String {
-        val requested = recognizerIntent?.getStringExtra(RecognizerIntent.EXTRA_LANGUAGE)
-        return when {
-            requested == null -> settings.language
-            requested.startsWith(AppSettings.LANGUAGE_SPANISH, ignoreCase = true) -> AppSettings.LANGUAGE_SPANISH
-            else -> AppSettings.LANGUAGE_AUTO
-        }
+        val requested = recognizerIntent?.getStringExtra(RecognizerIntent.EXTRA_LANGUAGE) ?: return settings.language
+        val iso = Locale.forLanguageTag(requested.replace('_', '-')).language
+        val code = WHISPER_CODE_FOR_ISO[iso] ?: iso
+        return if (code != Languages.AUTO && Languages.isValid(code)) code else AppSettings.LANGUAGE_AUTO
     }
 
     private fun notifyClient(callback: () -> Unit): Boolean {
@@ -336,7 +331,17 @@ class WhsprRecognitionService : RecognitionService() {
     }
 
     companion object {
-        private const val MAX_RECOGNITION_MS = 60_000L
+        // rmsChanged espera decibelios; los clientes animan con valores en torno a 0..10.
+        private const val MAX_RMS_DB = 10f
+
+        // Códigos ISO que Whisper nombra de otra forma.
+        private val WHISPER_CODE_FOR_ISO = mapOf(
+            "nb" to "no",
+            "iw" to "he",
+            "in" to "id",
+            "jv" to "jw",
+            "fil" to "tl",
+        )
     }
 }
 
