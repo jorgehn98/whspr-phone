@@ -37,72 +37,86 @@ el contenido es claro sobre carbón; en claro, oscuro sobre blanco. Tokens (rol)
 
 ### Teclado QWERTY (`KeyboardView`)
 
-Grid de teclas renderizado dinámicamente desde `KeyboardLayout` (datos puros sin
-lógica). Características:
+Grid de teclas renderizado desde `KeyboardLayout` (datos puros, sin lógica).
 
-- **Layouts por idioma**: ES (con ñ, tildes completas) e EN (con ñ/tildes en long-press).
-- **Capas**: LETTERS (ES/EN), SYMBOLS_1 (operadores, puntuación), SYMBOLS_2 (símbolos especiales).
-- **Teclas especiales**: SHIFT (con doble tap para CAPS_LOCK), BACKSPACE (repetición
-  hold 400ms/50ms), SPACE, PERIOD (coma en long-press, lado configurable respecto al
-  espacio vía ajuste "Posición del punto"), ENTER, MIC (micrófono).
-- **Long-press**: variantes de tildes/acentos (é, ú, ñ, etc.) sobre caracteres.
-- **Estructura de cada tecla**: `FrameLayout` (fondo + click + caja táctil) con un
-  `TextView` o `ImageView` centrado dentro en ambos ejes — no `TextView` con compound
-  drawable (un compound drawable con label vacío no centra verticalmente).
-- **Tipografía**: monoespaciada, sin Compose, `TextView` para labels de texto.
-- **Colores**: superficie redondeada (`Surface` + `SurfaceStroke`), texto `TextPrimary`.
-- **Feedback de pulsación**: sin ripple expansivo. `StateListDrawable` propio
-  (`KeyboardView.keyPressBackground`) con dos shapes fijos — normal y `state_pressed`
-  con un tono más resaltado del mismo fondo — y `setExitFadeDuration(0)`: el cambio de
-  color es instantáneo al tocar y al soltar. `surfaceRippleBackground` (Ui.kt) se
-  mantiene solo para los botones de `MainActivity`.
-- **Iconos vectoriales**: SHIFT, BACKSPACE, ENTER, GLOBE y MIC se renderizan con
-  `vector` drawables en `res/drawable/` (`ic_key_shift`, `ic_key_shift_caps`,
-  `ic_key_backspace`, `ic_key_enter`, `ic_key_globe`, `ic_key_mic`), derivados de
-  Lucide (ver `THIRD_PARTY_NOTICES.md`), en un `ImageView` con `scaleType
-  CENTER_INSIDE` tintado en runtime vía `imageTintList` con el mismo tono que el
-  texto del resto de teclas — nunca a color, nunca dependientes del render de emoji
-  de la fuente del fabricante.
-- **Estados de SHIFT** (`KeyboardView.ShiftState`), pensados para ser
-  inconfundibles entre sí en dispositivo real:
-  - `NONE`: icono `ic_key_shift` tintado como el resto de teclas (`textPrimary`).
-  - `SHIFT` (transitorio, una letra): fondo de la tecla resaltado a
-    `surfaceStroke` (un paso más claro que `surface`) e icono a `accentBright`.
-  - `CAPS_LOCK` (doble tap dentro de 500ms, fijo): tecla invertida — fondo
-    `accentBright`, icono `ic_key_shift_caps` (con barra superior) tintado `onAccent`
-    para mantener contraste.
+- **Layouts por idioma**: ES (con ñ) y EN; tildes y variantes en pulsación larga.
+- **Capas**: LETTERS, SYMBOLS_1 (operadores, puntuación) y SYMBOLS_2 (símbolos especiales).
+  Los campos numéricos abren en SYMBOLS_1, que incluye los dígitos.
+- **Fila inferior**: `!#1 · globo · punto · espacio · coma · micro · Intro`. El ajuste
+  "Posición del punto" intercambia punto y coma. El punto ofrece `? ! ¿ ¡ : ;` en
+  pulsación larga.
+- **Estructura de cada tecla**: `FrameLayout` (fondo y caja táctil) con un `TextView` o
+  `ImageView` centrado dentro — no `TextView` con compound drawable (con label vacío no
+  centra verticalmente).
+- **Toque**: lo resuelve `KeyboardView`, no cada tecla. Gana la tecla más cercana, así
+  que no hay zonas muertas en los huecos; se puede corregir deslizando antes de soltar;
+  y un dedo nuevo confirma la tecla que aún estuviera pulsada, para escribir rápido con
+  dos pulgares. Cada tecla conserva su propio click solo para accesibilidad.
+- **Feedback de pulsación**: sin ripple expansivo. `StateListDrawable` con dos shapes
+  fijos — normal y `state_pressed`, un tono más resaltado — y `setExitFadeDuration(0)`:
+  el cambio es instantáneo al tocar y al soltar. Además, vibración de tecla del sistema.
+  `surfaceRippleBackground` (Ui.kt) se usa en los botones de las pantallas de la app.
+- **Tipografía**: monoespaciada.
+- **Iconos vectoriales**: SHIFT, BACKSPACE, ENTER, GLOBE y MIC son `vector` drawables
+  derivados de Lucide (ver `THIRD_PARTY_NOTICES.md`), tintados en runtime con el mismo
+  tono que el texto de las teclas — nunca a color ni dependientes del emoji del fabricante.
+- **Estados de SHIFT** (`KeyboardView.ShiftState`), inconfundibles entre sí:
+  - `NONE`: icono `ic_key_shift` en `textPrimary`.
+  - `SHIFT` (una letra; lo activa el usuario o la mayúscula automática): fondo
+    `surfaceStroke` e icono `accentBright`.
+  - `CAPS_LOCK` (doble toque en 500 ms): tecla invertida — fondo `accentBright`, icono
+    `ic_key_shift_caps` en `onAccent`.
+  Cambiar de estado actualiza las teclas existentes, sin reconstruir el grid.
 
-### Icono de la app (launcher)
+### Panel de dictado (`DictationView`)
 
-Adaptive icon vectorial (`mipmap-anydpi` + drawables), derivado del
-visualizador de voz: 9 barras verticales blancas (`#FFFFFF`) con la envolvente
-simétrica del modo RECORDING, sobre fondo carbón `#0E0E10` (token `background`
-oscuro). Menos barras que `VoiceWaveView` (9 frente a 19) a propósito: a tamaño
-launcher las 19 barras finas pierden definición. La capa `monochrome` reutiliza
-el foreground, así que los themed icons de Android 13+ salen gratis. Los hex van
-en los drawables del icono porque los recursos de launcher no pueden leer
-`WhsprColors`; son los mismos valores de la paleta oscura.
+Sustituye al teclado mientras se graba o transcribe. Cabecera de 40 dp con el estado a la
+izquierda (`Escuchando… toca para terminar` / `Transcribiendo…`, monoespaciado,
+`textMuted`) y el botón **Cancelar** a la derecha (superficie con borde, como una tecla);
+debajo, el visualizador de voz ocupa el resto y termina la grabación al tocarlo.
 
 ### Visualizador de voz (`VoiceWaveView`)
 
-Barras verticales (19 unidades, finas) centradas y simétricas, dibujadas con `Canvas`.
-Estados (`Mode`):
+19 barras verticales finas, centradas y simétricas, dibujadas con `Canvas`.
 
-- **RECORDING**: barras reactivas al nivel de audio (RMS 0..1 suavizado), color `accentBright`.
-  Las barras centrales responden más (simulan ecualizador). Jitter para animar.
-- **TRANSCRIBING**: barrido sinusoidal de barras, color `accentDeep`. Anima mientras procesa.
+- **RECORDING**: barras reactivas al nivel de audio, color `accentBright`. Las centrales
+  responden más que las de los extremos; un jitter leve las mantiene vivas.
+- **TRANSCRIBING**: barrido sinusoidal, color `accentDeep`.
 
-Suavizado con attack rápido / decay lento sobre el nivel crudo. El nivel se
-actualiza desde el hilo de audio (`setLevel`, solo escritura de un `@Volatile
-Float`, nunca invalida la vista). Antes de dibujar, `onDraw` remapea (ganancia)
-el rango útil de voz normal (~0.02..0.4 del RMS normalizado) a 0..1 con
-saturación, para que la onda se note con voz normal en vez de quedarse casi
-plana; el suavizado attack/decay ocurre sobre el valor crudo, la ganancia se
-aplica después y es puramente de render. La vista se anima automáticamente con
-`postInvalidateOnAnimation`.
+El nivel llega desde el hilo de audio (`setLevel` solo escribe un `@Volatile Float`,
+nunca invalida la vista). `onDraw` suaviza con attack rápido y decay lento sobre el valor
+crudo y después remapea el rango útil de voz normal (~0.02..0.4) a 0..1, para que la onda
+se note sin gritar.
 
-**Altura constante del IME**: el contenedor del teclado y `VoiceWaveView` comparten
-la misma altura fija (`KeyboardView.HEIGHT_DP`, derivada del número de filas del
-grid). Alternar entre teclado y onda (`WhsprInputMethodService.applyState`) solo
-cambia qué vista es `VISIBLE`/`GONE`, nunca el alto del contenedor — evita que la
-app de debajo dé un salto de layout al empezar o terminar el dictado.
+### Altura del IME
+
+Teclado y panel de dictado comparten la misma altura (`KeyboardView.heightDp`): 240 dp en
+vertical y, en horizontal, como mucho media pantalla. Alternar entre ambos solo cambia
+qué vista es visible, así la app de debajo no da un salto de layout al empezar o terminar
+un dictado. Las filas se reparten ese alto a partes iguales: con la fila numérica oculta
+quedan 4 filas más altas.
+
+### Pantalla principal (`MainActivity`)
+
+Una columna con tres secciones:
+
+- **Puesta en marcha**: cuatro pasos como botones monoespaciados alineados a la
+  izquierda, con casilla ASCII (`[x]` hecho, `[ ]` pendiente) y texto que describe el
+  estado real o la acción pendiente. El paso del modelo muestra el porcentaje de descarga
+  y lleva al lado la papelera (cancelar descarga o borrar modelo).
+- **Dictado**: modelo e idioma, cada uno con su selector.
+- **Pruébalo**: un campo de texto para probar teclado y dictado sin salir de la app.
+
+**Más ajustes** (`SettingsActivity`) agrupa los ajustes del teclado y la sección
+**Acerca de** (licencias de terceros y versión).
+
+### Icono de la app (launcher)
+
+Adaptive icon vectorial (`mipmap-anydpi` + drawables), derivado del visualizador de voz:
+9 barras verticales blancas (`#FFFFFF`) con la envolvente simétrica del modo RECORDING,
+sobre fondo carbón `#0E0E10` (token `background` oscuro). Menos barras que
+`VoiceWaveView` (9 frente a 19) a propósito: a tamaño launcher las 19 barras finas
+pierden definición. La capa `monochrome` reutiliza el foreground, así que los themed
+icons de Android 13+ salen gratis. Los hex van en los drawables del icono porque los
+recursos de launcher no pueden leer `WhsprColors`; son los mismos valores de la paleta
+oscura.

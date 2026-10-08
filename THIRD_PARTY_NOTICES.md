@@ -13,7 +13,8 @@ Whspr vendors a trimmed Android `arm64-v8a` CPU-only subset of `whisper.cpp` in 
 Whspr downloads Whisper GGML models from the `ggerganov/whisper.cpp` Hugging Face repository.
 
 - Source: https://huggingface.co/ggerganov/whisper.cpp
-- Models are downloaded by the user into the app's private external files directory.
+- Catalog: `ggml-tiny-q5_1.bin`, `ggml-base-q5_1.bin`, `ggml-small-q5_1.bin` (see `ModelCatalog.kt`).
+- Models are downloaded by the user, verified by SHA-256 and stored in the app's internal files directory.
 - Models are not bundled in the APK.
 
 ## Lucide icons
@@ -25,3 +26,9 @@ Android `<vector>` XML and tinted at runtime from `WhsprColors`.
 
 - Source: https://lucide.dev
 - License: ISC
+
+## In-app notices
+
+The full license texts of whisper.cpp and Lucide ship inside the APK in
+`app/src/main/res/raw/third_party_licenses.txt` and are shown under **Más ajustes →
+Licencias de terceros**. Keep that file in sync with this one.

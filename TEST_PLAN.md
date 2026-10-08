@@ -1,230 +1,133 @@
-# Whspr test plan
+# Whspr — plan de pruebas
 
-Pruebas mínimas antes de dar la app por buena.
+Qué comprobar antes de dar una versión por buena. La verificación automática (checks estáticos, lint, build y `verify-apk.py`) cubre que la app compila y está bien empaquetada; el comportamiento se comprueba a mano con este plan, en un dispositivo arm64 o en el emulador (ver el final).
 
-## Build
+## 1. Build
 
-1. Ejecutar en Fedora/Linux:
+```bash
+scripts/check-android-env.py     # JDK con javac, SDK 36, Build Tools 36.x, NDK 28.2.13676358, CMake, adb
+scripts/build-release.py         # checks estáticos + lint + APK + verify-apk
+scripts/verify-model-catalog.py  # opcional, usa red: URLs y tamaños del catálogo
+```
 
-   ```bash
-   scripts/check-android-env.py
-   ```
+`build-release.py` debe terminar con todas las líneas `OK` de `verify-apk.py` y un tamaño de APK por debajo de 4 MB.
 
-   Si falta solo la ruta del SDK y Android Studio está instalado:
+## 2. Instalación y puesta en marcha
 
-   ```bash
-   scripts/write-local-properties.py
-   ```
+```bash
+scripts/install-release.py       # --serial <adb-serial> si hay varios dispositivos
+```
 
-2. Confirmar:
-   - Java OK
-   - Android SDK platform `36` OK
-   - Android SDK Build Tools `36.x` OK
-   - NDK `28.2.13676358` OK
-   - Android SDK CMake OK
-   - adb OK
+1. La app se abre y muestra los cuatro pasos de **Puesta en marcha**.
+2. **Permitir micrófono** pide el permiso; al concederlo el paso pasa a `[x] Micrófono permitido`. Si el permiso se denegó de forma permanente, el botón abre los ajustes de la app.
+3. **Descargar modelo** muestra `Descargando modelo… N %` y termina en `[x] Modelo descargado`.
+4. Durante la descarga, la papelera la cancela y el paso vuelve a `[ ] Descargar modelo`. Con el modelo descargado, la papelera lo borra.
+5. Cambiar de modelo a mitad de descarga cancela la descarga anterior y no deja un archivo parcial dado por bueno.
+6. Sin red, o si la descarga falla, el paso muestra `La descarga falló. Reintentar` y no queda en "descargando".
+7. **Activar el teclado Whspr** abre los ajustes de Android; al volver, el paso refleja si Whspr está activado.
+8. **Elegir Whspr como teclado** abre el selector; al elegirlo el paso pasa a `[x] Whspr es el teclado actual`.
+9. El campo **Pruébalo** abre el teclado Whspr y permite escribir y dictar.
+10. **Más ajustes** muestra posición del punto, fila de números, licencias de terceros y la versión.
 
-3. Compilar desde Android Studio:
+## 3. Teclado
 
-   - Abrir el proyecto.
-   - Esperar a que sincronice Gradle.
-   - Ejecutar **Build > Make Project**.
+### Escritura
 
-   O con Gradle Wrapper:
+1. Escribir una frase con letras, números y símbolos: aparece en el campo activo.
+2. Tocar en el hueco entre dos teclas escribe la más cercana; no hay zonas muertas.
+3. Escribir rápido con dos pulgares (segundo dedo abajo antes de levantar el primero): no se pierde ninguna letra y salen en orden.
+4. Empezar a pulsar una tecla, deslizar a la vecina y soltar: se escribe la tecla donde se suelta.
+5. Cada pulsación vibra si la vibración de teclado está activada en el sistema.
+6. **Borrar** elimina un carácter al pulsar y repite al mantener (400 ms de espera, luego cada 50 ms). Un emoji escrito con otro teclado se borra entero.
+7. **Intro** ejecuta la acción del campo (buscar, enviar) si existe; en un campo multilínea inserta salto de línea.
+8. **Globo** alterna entre ES (con ñ) y EN; mantenerlo pulsado abre el selector de teclados del sistema.
+9. **`!#1`** abre los símbolos; **1/2** y **2/2** cambian de página; **ABC** vuelve a letras.
+10. Un campo numérico o de teléfono abre directamente la capa con dígitos; al pasar a un campo de texto vuelve a letras.
 
-   ```bash
-   ./gradlew :app:assembleRelease
-   ```
+### Mayúsculas y puntuación
 
-   O directamente:
+1. En un campo de texto vacío, SHIFT aparece activado y la primera letra sale en mayúscula; después se apaga solo.
+2. Tras punto y espacio vuelve a activarse la mayúscula.
+3. Dos espacios seguidos tras una palabra escriben punto y espacio. En campos de URL, correo o contraseña, no. Un solo espacio junto a otro que ya estaba en el texto (o tras un dictado) tampoco.
+3b. Con la mayúscula automática activa, ir a `!#1` y volver con **ABC**: la mayúscula sigue activa.
+4. Un toque en SHIFT pone una sola mayúscula; dos toques seguidos bloquean mayúsculas (tecla invertida) y un tercero las quita.
+5. Con mayúsculas bloqueadas, pasar por símbolos y volver las conserva; un SHIFT de una sola letra se descarta.
+6. En un campo de contraseña no hay mayúscula automática.
 
-   ```bash
-   scripts/build-release.py
-   ```
+### Pulsación larga
 
-   Debe terminar con:
-   - APK package/perms/native ABI OK
-   - APK manifest services/metadata/privacy OK
-   - APK sin modelos/assets embebidos OK
-   - APK size <= 4 MB
+1. `e`, `a`, `o`, `u`, `i` ofrecen sus tildes y variantes; `c` ofrece `ç`; `n` ofrece `ñ` en EN.
+2. El punto ofrece `? ! ¿ ¡ : ;`.
+3. Elegir una variante la escribe y cierra el popup; soltar sin elegir no escribe nada.
+4. Con SHIFT activo, las variantes salen en mayúscula.
 
-4. Si quieres validar el catálogo remoto de modelos, ejecutar:
+### Ajustes del teclado
 
-   ```bash
-   scripts/verify-model-catalog.py
-   ```
+1. Por defecto el punto está a la izquierda del espacio y la coma a la derecha. **Posición del punto → Derecha** los intercambia.
+2. **Fila de números → Ocultar** deja 4 filas en letras sin cambiar el alto total; los símbolos siguen mostrando los dígitos.
+3. Los cambios se aplican al volver a un campo de texto, sin reiniciar la app.
 
-   Debe confirmar que cada URL es HTTPS, responde por red y el tamaño remoto cumple `minBytes`.
+### Aspecto
 
-## Instalación
+1. Claro y oscuro siguen al sistema; todo es monocromo.
+2. Los iconos de SHIFT, borrar, Intro, globo y micro son vectoriales, del mismo tono que las letras y centrados.
+3. En horizontal el teclado ocupa como mucho media pantalla y no abre el modo de edición a pantalla completa.
 
-1. Conectar un Android arm64 con depuración USB.
-2. Ejecutar:
+## 4. Dictado desde el teclado
 
-   ```bash
-   scripts/install-release.py
-   ```
+1. Pulsar el micro: el teclado se sustituye por el panel de dictado (`Escuchando… toca para terminar`, botón **Cancelar** y la onda) sin que cambie el alto.
+2. Al hablar, las barras reaccionan; en silencio quedan casi planas.
+3. Tocar la onda: pasa a `Transcribiendo…`, y al terminar vuelve el teclado con el texto insertado y un espacio final.
+4. Dictar justo después de una palabra ya escrita: el texto dictado queda separado por un espacio, no pegado.
+5. **Cancelar** mientras graba: vuelve el teclado, no se inserta nada y el indicador de micrófono del sistema se apaga.
+6. **Cancelar** mientras transcribe: vuelve el teclado de inmediato y no aparece texto más tarde. Un dictado nuevo funciona con normalidad.
+7. Grabar unos segundos sin hablar y terminar: aviso `No he oído nada.`, sin texto inventado.
+8. Dejar correr la grabación hasta el límite (~60 s): se detiene sola y transcribe.
+9. Ocultar el teclado (atrás) mientras graba: la grabación se cancela y el micrófono se libera.
+10. Cambiar de campo mientras transcribe: el texto no se pega en el campo nuevo.
+11. Girar el dispositivo mientras graba: si la app conserva el campo, la grabación continúa; si lo recrea (lo habitual), el dictado se cancela, el micrófono se libera y no se pega texto.
+12. Sin permiso de micrófono o sin modelo: aviso y se abre Whspr para resolverlo.
+13. Con el idioma de dictado en **Auto**, dictar en español y en inglés: se transcribe en el idioma hablado.
+14. Modelo corrupto (archivo interno alterado, solo posible con root): `El modelo descargado no es válido`, el archivo se borra y se puede volver a descargar.
+15. Empezar y parar varias veces seguidas: el micro no queda bloqueado ni se mezcla audio de intentos anteriores.
 
-   Si hay más de un dispositivo/emulador conectado, usar `--serial <adb-serial>` o `ANDROID_SERIAL`.
+## 5. Proveedor de voz Android (`RecognitionService`)
 
-3. Verificar dispositivo y registro Android:
+Con otra app o teclado que use `SpeechRecognizer` apuntando a Whspr:
 
-   ```bash
-   scripts/verify-device.py
-   ```
+1. La escucha empieza (`onReadyForSpeech`) y el cliente recibe niveles (`onRmsChanged`). No debe llegar `ERROR_INSUFFICIENT_PERMISSIONS` si el cliente tiene permiso de micrófono.
+2. Tras hablar y callar ~1,5 s la escucha termina sola y el cliente recibe el texto en `onResults` (`RESULTS_RECOGNITION`).
+3. Sin hablar, a los ~8 s el cliente recibe `ERROR_NO_MATCH`, sin texto inventado.
+4. Cancelar desde el cliente: no llega ningún resultado tardío y el micrófono se libera.
+5. Con `EXTRA_LANGUAGE` (p. ej. `en-US`) se transcribe en ese idioma; con un idioma que Whisper no conoce, se detecta automáticamente y se transcribe igual.
+6. Una petición de descarga de modelo desde el cliente (Android 14+) responde éxito si el modelo ya está instalado y error si no: Whspr nunca descarga por orden de otra app.
+7. En Android 13+, el cliente detecta soporte solo cuando el modelo está instalado.
+8. En Android 12+, el indicador de micrófono atribuye el uso correctamente y se apaga al devolver el resultado.
 
-   Debe confirmar API Android 28+, ABI `arm64-v8a`, IME registrado y `RecognitionService` registrado. El permiso de micrófono debe salir como `OK` si `adb` pudo concederlo, o como aviso para permitirlo manualmente.
-   `install-release.py` también debe abrir `MainActivity` con `am start -W` sin errores.
+## 6. Seguridad y bordes
 
-4. En Whspr, pulsar **Activar Whspr**.
-5. Habilitar `Whspr`.
-6. Volver a Whspr.
-7. Confirmar `Micro: OK`. Si el permiso no está concedido, pulsar **Permitir micrófono**.
-8. Descargar `Tiny multilingüe`.
-9. Confirmar estado:
-   - `Micro: OK`
-   - `Modelo: OK`
-10. Si la descarga no arranca, confirmar que Whspr muestra un aviso y no queda en estado `descargando`.
-11. Empezar a descargar un modelo, cambiar a otro modelo y confirmar que la descarga anterior no sigue como pendiente ni deja un archivo parcial visible.
-12. Mientras un modelo se descarga, confirmar que Whspr no lo marca como `OK` ni permite dictar aunque el archivo parcial ya pese bastante.
-13. Si una descarga termina con archivo demasiado pequeño, confirmar que Whspr no permite dictar y limpia el parcial.
-14. Si el archivo de modelo existe pero no se puede leer o falla SHA, confirmar que Whspr no se queda en `Transcribiendo…` y permite descargarlo otra vez.
-15. Forzar un fallo de transcripción/modelo y confirmar que el botón vuelve a estar usable tras el error.
-16. Si los ajustes guardados contienen un modelo o idioma desconocido, confirmar que Whspr vuelve a valores por defecto sin borrar archivos de otro modelo.
-
-## Teclado
-
-### Escritura manual
-
-1. Abrir cualquier app con campo de texto normal.
-2. Cambiar a Whspr.
-3. Escribir una frase con letras, números, símbolos.
-4. Confirmar que el texto aparece en el campo activo.
-5. Pulsar **Borrar** y confirmar que elimina un carácter. Mantener pulsado y confirmar que repite (400ms inicio, 50ms intervalo).
-6. Escribir un emoji con otro teclado, volver a Whspr y confirmar que **Borrar** lo elimina completo.
-7. Pulsar **Espacio** dos veces y confirmar que no duplica espacios seguidos.
-8. Pulsar **Globo** y confirmar que cambia entre ES (ñ, tildes directas) e EN (ñ/tildes en long-press).
-8b. Confirmar que SHIFT, BACKSPACE, ENTER, GLOBE y MIC se ven como iconos vectoriales
-    monocromos (mismo tono que el resto de teclas), sin emoji a color ni glifos de
-    fuente finos o con tono distinto, y que quedan centrados en ambos ejes dentro de
-    la tecla (ni desplazados hacia arriba ni hacia un lado).
-8c. Confirmar que, por defecto, el punto (`.`) está a la IZQUIERDA del espacio en la
-    fila inferior (`!#1 · globo · . · espacio · micro · Intro`).
-8d. En Whspr, pulsar **Más ajustes** y, en la sección **Teclado**, abrir **Posición del
-    punto** y cambiar a "Derecha". Volver al teclado (sin necesidad de reiniciar la app)
-    y confirmar que el punto pasa a la derecha del espacio. Cambiar de nuevo a
-    "Izquierda" y confirmar que vuelve. En ambos lados, confirmar que el long-press del
-    punto sigue ofreciendo la coma.
-8e. Confirmar que al tocar y soltar cualquier tecla, el resaltado de fondo cambia y
-    se apaga de forma instantánea (sin onda expansiva ni fundido perceptible).
-8f. Confirmar que, por defecto, LETTERS muestra la fila de números (1234567890) encima
-    de las letras, y que SYMBOLS_1/SYMBOLS_2 siempre la muestran también.
-8g. En Whspr, pulsar **Más ajustes** y, en la sección **Teclado**, abrir **Fila de
-    números** y elegir "Ocultar". Volver al teclado (sin reiniciar la app) y confirmar
-    que LETTERS pasa a 4 filas (sin números), con teclas proporcionalmente más altas, y
-    que el ALTO TOTAL del teclado no cambia (compararlo con el alto que tenía antes, p.
-    ej. mirando si la posición del espacio/enter en la fila inferior se mantiene).
-    Confirmar que SYMBOLS_1/SYMBOLS_2 siguen mostrando su fila de números aunque el
-    ajuste esté en "Ocultar". Volver a "Mostrar" y confirmar que LETTERS recupera las 5
-    filas con el mismo alto total.
-8h. Con el teclado abierto en un campo de texto, ir a Whspr y cambiar el idioma de
-    dictado, o entrar en **Más ajustes** y cambiar posición del punto o fila de números.
-    Volver al campo de texto SIN rotar ni reiniciar la app y confirmar que el teclado
-    refleja el cambio en cuanto se vuelve a enfocar el campo.
-8i. Desde Whspr, pulsar **Más ajustes**. Confirmar que se abre una pantalla nueva con
-    encabezado de sección **Teclado** y los ajustes de posición del punto y fila de
-    números. Confirmar que el back estándar del sistema vuelve a la pantalla principal
-    sin perder el estado de Whspr.
-9. Pulsar **!#1** y confirmar que muestra SYMBOLS_1 (operadores, puntuación).
-10. Pulsar **1/2** para ir a SYMBOLS_2 (símbolos especiales); confirmar que el label
-    cabe en una sola línea sin desbordar la tecla. Pulsar **2/2** para volver a SYMBOLS_1.
-11. Pulsar **ABC** para volver a LETTERS.
-
-### Mayúsculas
-
-1. Pulsar **SHIFT** una vez. Confirmar que la siguiente letra se escribe en mayúsculas, el fondo de la tecla se resalta (un tono más claro) y el icono cambia a `accentBright`.
-2. Después de escribir una letra mayúscula, confirmar que SHIFT se apaga automáticamente (fondo e icono vuelven a normal).
-3. Pulsar **SHIFT** dos veces con el dedo, con un intervalo natural (hasta ~450ms) para activar CAPS_LOCK. Confirmar que la ventana de doble tap (500ms) es suficiente para un doble tap real con el dedo y ya no lo interpreta como activar+desactivar. Confirmar que la tecla se invierte (fondo claro sólido) con el icono de barra oscuro, y que se distingue claramente tanto del estado NONE como del SHIFT transitorio.
-4. Escribir varias letras en mayúsculas.
-5. Pulsar **SHIFT** de nuevo para apagar CAPS_LOCK.
-6. Con SHIFT o CAPS activo, usar long-press para escribir tildes/acentos: deben salir en mayúsculas (É, Ñ, etc.).
-7. Pulsar **SHIFT** una vez (transitorio), pasar a **!#1** y volver con **ABC**: confirmar
-   que SHIFT quedó apagado (no escribe mayúscula). Activar CAPS_LOCK, hacer el mismo viaje
-   por símbolos y confirmar que CAPS_LOCK SÍ se conserva.
-
-### Long-press
-
-1. Mantener pulsado **E** (ES/EN) y confirmar que aparece popup con variantes: e, é, è, ë, ê.
-2. Pulsar una variante del popup; confirmar que aparece en el campo y el popup se cierra.
-3. Confirmar que long-press en punto (`.`) ofrece también coma (`,`).
-4. Confirmar que long-press en A ofrece á, à, ä, â, ã.
-5. Confirmar que long-press en O ofrece ó, ò, ö, ô, õ.
-6. Confirmar que long-press en Ñ (ES) y N (EN) ofrecen ñ.
-7. Confirmar que long-press en C ofrece ç.
-
-### Dictado de voz
-
-1. Abrir un campo de texto y cambiar a Whspr.
-2. Pulsar el micrófono. Confirmar que el teclado desaparece y muestra barras visualizadoras, y que el área del teclado NO cambia de alto al pasar de teclado a onda (ni al volver).
-3. Hablar una frase corta con volumen normal. Confirmar que las barras reaccionan visiblemente (llenan buena parte del alto disponible, no solo un movimiento apenas perceptible) y con silencio quedan casi planas.
-3b. Confirmar que la onda anima desde la PRIMERA grabación tras abrir el teclado (sin necesidad de una grabación previa), y también tras rotar el dispositivo a mitad de grabación.
-4. Pulsar de nuevo (en la onda o el micrófono) para parar la grabación.
-5. Confirmar que pasa a estado TRANSCRIBING (barras con barrido sinusoidal, accentDeep).
-6. Esperar a que transcribe. Confirmar que el teclado reaparece y el texto se inserta en el campo.
-7. Confirmar que el dictado deja separación final sin duplicar espacios.
-8. En un campo de búsqueda o chat, pulsar **Intro** desde el teclado tras escribir/dictar, y confirmar que ejecuta la acción del campo si existe.
-9. En un campo multilínea, pulsar **Intro** y confirmar que inserta salto de línea.
-10. Dictar en silencio (sin hablar, unos segundos de grabación) y parar. Confirmar que no
-    se pega ningún texto ni etiqueta tipo "[MÚSICA]"/"(music)"/"♪" en el campo, no aparece
-    ningún Toast de error, y el teclado vuelve solo al estado normal.
-11. Dejar una grabación correr sin tocar nada hasta el límite (~60 s). Confirmar que la
-    grabación se detiene SOLA al llegar al límite, pasa a TRANSCRIBING sin intervención y
-    el texto dictado se inserta en el campo (la onda no se queda animando indefinidamente).
-
-## Dictado de voz Android
-
-1. En Whspr, pulsar **Dictado Android**.
-2. Si Android permite elegir proveedor de voz, seleccionar Whspr.
-3. En Gboard/SwiftKey/u otro teclado, tocar su botón de micrófono.
-4. Confirmar que el teclado/Android empieza a escuchar usando Whspr como proveedor.
-5. Parar el dictado desde el teclado y confirmar que el texto vuelve al campo llamante.
-6. Confirmar al menos que Whspr aparece como entrada/proveedor de voz Android.
-7. Cancelar el dictado desde el teclado mientras Whspr está transcribiendo y confirmar que no aparece texto tarde.
-8. Cambiar el idioma de dictado del teclado a español y confirmar que Whspr respeta español; con otro idioma, confirmar que cae a modo auto.
-9. En Android 12+, confirmar que el indicador de micrófono atribuye el uso al flujo de dictado esperado y no deja el micro activo tras devolver resultado.
-10. En Android 13+, confirmar que el teclado/cliente detecta soporte de voz después de descargar el modelo; antes de descargarlo debe fallar como no disponible, no quedarse colgado.
-11. En Android 14+, si el cliente pide descarga de modelo vía `RecognitionService`, confirmar que Whspr responde éxito si ya está descargado y descarga agendada si falta.
-12. Dictar en silencio desde otro teclado (proveedor Whspr) y confirmar que el cliente recibe
-    un error de "sin resultado" y NO la etiqueta cruda tipo "[MÚSICA]"/"(music)".
-
-## Seguridad y bordes
-
-1. Abrir un campo de contraseña.
-2. Confirmar que el micrófono aparece como no disponible: la tecla se ve ATENUADA (gris
-   `disabled`, claramente distinta del resto) y al pulsarla muestra el aviso sin grabar.
-   Al volver a un campo normal, la tecla recupera su color normal.
-3. Abrir un campo URL normal y confirmar que Whspr sí permite dictar.
-4. Abrir una contraseña numérica/PIN y confirmar que Whspr no permite dictar.
-5. Empezar dictado en un campo normal, parar, y cambiar rápido a otro campo.
-6. Confirmar que el texto no se pega en el campo nuevo.
-7. Intentar cambiar de teclado mientras está grabando/transcribiendo.
-8. Confirmar que Whspr lo impide hasta terminar.
-9. Girar el móvil en horizontal y confirmar que Whspr no abre una pantalla fullscreen de edición.
-10. Cortar una descarga o dejar un modelo corrupto, intentar dictar y confirmar que Whspr lo rechaza y permite descargarlo otra vez.
-11. Parar un dictado, abrir Whspr rápido y cambiar idioma/modelo mientras transcribe; confirmar que no borra el modelo equivocado ni pega texto en el campo equivocado.
-12. Empezar/parar dictado varias veces rápido y confirmar que no se queda el micro bloqueado ni mezcla audio de intentos anteriores.
+1. En campos de contraseña (texto y PIN numérico) la tecla de micro aparece atenuada y al pulsarla solo avisa.
+2. En un campo de URL normal sí se puede dictar.
+3. Una ventana superpuesta al teclado (overlay) no puede hacer que se pulsen teclas.
+4. Ajustes guardados con un modelo o idioma desconocido: la app vuelve a los valores por defecto.
+5. Tras 5 minutos sin dictar, la memoria del proceso del teclado baja (modelo liberado) y el siguiente dictado lo vuelve a cargar.
 
 ## Criterio de aceptación
 
-La app se considera lista cuando:
+- Compila, pasa lint y `verify-apk.py`.
+- Los cuatro pasos de puesta en marcha reflejan el estado real.
+- Se escribe con normalidad con el teclado.
+- Dicta y transcribe en local, se puede cancelar, y no inserta nada cuando no hay voz.
+- No dicta en contraseñas ni pega texto en un campo distinto del que inició el dictado.
+- Otras apps pueden usar Whspr como reconocedor de voz.
 
-- Compila sin errores.
-- Descarga el modelo.
-- Rechaza modelos corruptos.
-- Graba desde el teclado.
-- Se anuncia como entrada de voz Android y como `RecognitionService`.
-- Transcribe localmente.
-- Inserta texto en campos normales.
-- No dicta en contraseñas.
-- No pega texto en el campo equivocado si el foco cambia.
-- La APK release local queda minificada y no incluye modelos embebidos.
+## Verificar sin dispositivo (emulador)
+
+La APK es solo `arm64-v8a`, pero las imágenes `x86_64` del emulador con Google APIs (API 30+) traducen binarios arm64, así que la app real se instala y transcribe ahí, más despacio que en un móvil.
+
+1. Crear un AVD con una imagen `system-images;android-34;google_apis;x86_64` y arrancarlo con `-grpc 8554` (en equipos donde el emulador sin ventana falla, probar `-gpu host`).
+2. `scripts/install-release.py --serial emulator-5554`.
+3. El emulador no tiene micrófono real: para dictar hay que inyectar audio con la llamada `injectAudio` de su API gRPC (`emulator/lib/emulator_controller.proto` en el SDK), enviando un WAV de 16 kHz mono **mientras la app está grabando**. Inyectar sin una grabación activa puede hacer caer el emulador.
+4. Para la sección 5 hace falta una app cliente mínima que llame a `SpeechRecognizer.createSpeechRecognizer(context, ComponentName("dev.jorgex.whspr", "dev.jorgex.whspr.WhsprRecognitionService"))`.
+
+Lo que el emulador no sustituye: la sensación real de escritura, la vibración, la latencia de transcripción en un móvil y el comportamiento con un micrófono y ruido reales.
